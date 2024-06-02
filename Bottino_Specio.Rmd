@@ -1,0 +1,97 @@
+---
+title: "Untitled"
+author: "Bottino Manuel & Giuseppe Specio"
+date: "Today's Date"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+# Introduction
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown, see <https://rmarkdown.rstudio.com>.
+
+## R Code
+
+You can include R code chunks in your document. Below is an example of a code chunk that prints the sum of 1 and 2:
+
+```{r setup_import_dataset}
+# Twitter -> http://snap.stanford.edu/data/ego-Twitter.html
+# your_network <- read.table("possible data/twitter_combined.txt")
+# Ecology -> https://networkrepository.com/eco.php
+# your_network <- read.table("possible data/eco-florida/eco-florida.edges")
+# Amazon -> https://networkrepository.com/eco.php
+# # your_network <- read.table("possible data/Amazon0302.txt")
+# Astro physics -> http://snap.stanford.edu/data/ca-AstroPh.html
+# your_network <- read.table("possible data/CA-AstroPh.txt")
+# Amazon reviews -> http://snap.stanford.edu/data/amazon-meta.html
+# your_network <- read.table("possible data/amazon-meta.txt")
+# Economics (?) ->
+# your_network <- read.table("possible data/econ-orani678/econ-orani678.mtx")
+
+#######################################################################################################################
+# Import the data
+# Overall dolphin social network
+overall_dolphins <- read.table("Data/Delfini Florida/Overall/mammalia-dolphin-florida-overall.edges")
+# Forage dolphins social network
+forage_dolphins <- read.table("Data/Delfini Florida/Forage/mammalia-dolphin-florida-forage.edges")
+# Social dolphins social network
+social_dolphins <- read.table("Data/Delfini Florida/Social/mammalia-dolphin-florida-social.edges")
+# Travel dolphins social network
+travel_dolphins <- read.table("Data/Delfini Florida/Travel/mammalia-dolphin-floridatravel.edges")
+
+# Set the wright as factor, this helps with graphs
+overall_dolphins$V3 <- as.factor(overall_dolphins$V3)
+forage_dolphins$V3 <- as.factor(forage_dolphins$V3)
+social_dolphins$V3 <- as.factor(social_dolphins$V3)
+travel_dolphins$V3 <- as.factor(travel_dolphins$V3)
+
+overall_dolphins[overall_dolphins$V1==1,]
+forage_dolphins[forage_dolphins$V1==1,]
+
+
+# Create a graph from the edge list
+net_overall_dolphins <- graph_from_data_frame(overall_dolphins[1:250,], directed = FALSE)
+net_forage_dolphins <- graph_from_data_frame(forage_dolphins, directed = FALSE)
+net_social_dolphins <- graph_from_data_frame(social_dolphins, directed = FALSE)
+net_travel_dolphins <- graph_from_data_frame(travel_dolphins, directed = FALSE)
+
+```
+
+```{r}
+
+# Set up plot for delphins library(igraph)
+library(igraph)
+library(ggraph)
+library(graphlayouts)
+library(networkdata)
+library(ggforce)
+
+#first stupid graph by me
+autograph(net_overall_dolphins)
+
+ggraph(net_overall_dolphins, "stress", bbox = 15) +
+  geom_edge_link2(aes(edge_colour = V3), edge_linewidth = 0.5) +
+  geom_node_point( shape = 21, size = 3) +
+  geom_node_text(aes(label = name, size = igraph::degree(net_overall_dolphins)),
+    family = "serif", repel = TRUE
+  ) +
+  scale_edge_colour_brewer(palette = "Set1") +
+  #scale_fill_manual(values = c("grey66", "#EEB422", "#424242")) +
+  scale_size(range = c(4, 10), guide = "none") +
+  theme_graph() +
+  theme(legend.position = "bottom")
+
+ggraph(greys, "stress", bbox = 15) +
+  geom_edge_link2(aes(edge_colour = node.position), edge_linewidth = 0.5) +
+  geom_node_point(aes(fill = sex), shape = 21, size = 3) +
+  geom_node_text(aes(label = name, size = igraph::degree(greys)),
+    family = "serif", repel = TRUE
+  ) +
+  scale_edge_colour_brewer(palette = "Set1") +
+  scale_fill_manual(values = c("grey66", "#EEB422", "#424242")) +
+  scale_size(range = c(2, 5), guide = "none") +
+  theme_graph() +
+  theme(legend.position = "bottom")
+```
