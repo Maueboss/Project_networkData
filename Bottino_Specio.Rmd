@@ -14,23 +14,16 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 
 ## R Code
 
-You can include R code chunks in your document. Below is an example of a code chunk that prints the sum of 1 and 2:
+In our case the weight would be -> weighted, with the weights being the half-weight index (HWI)=the number of times dolphins A and B were seen together divided 
+by the total number of times they were seen together plus half the value of when A was seen without B and B was seen without A, and range from 0 for individuals
+ that were never sighted together in groups to 1 for individuals that were always sighted together
 
 ```{r setup_import_dataset}
-# Twitter -> http://snap.stanford.edu/data/ego-Twitter.html
-# your_network <- read.table("possible data/twitter_combined.txt")
-# Ecology -> https://networkrepository.com/eco.php
-# your_network <- read.table("possible data/eco-florida/eco-florida.edges")
-# Amazon -> https://networkrepository.com/eco.php
-# # your_network <- read.table("possible data/Amazon0302.txt")
-# Astro physics -> http://snap.stanford.edu/data/ca-AstroPh.html
-# your_network <- read.table("possible data/CA-AstroPh.txt")
-# Amazon reviews -> http://snap.stanford.edu/data/amazon-meta.html
-# your_network <- read.table("possible data/amazon-meta.txt")
-# Economics (?) ->
-# your_network <- read.table("possible data/econ-orani678/econ-orani678.mtx")
 
 #######################################################################################################################
+library(igraph)
+library(tidyverse)
+library(dplyr)
 # Import the data
 # Overall dolphin social network
 overall_dolphins <- read.table("Data/Delfini Florida/Overall/mammalia-dolphin-florida-overall.edges")
@@ -48,8 +41,42 @@ social_dolphins$V3 <- as.factor(social_dolphins$V3)
 travel_dolphins$V3 <- as.factor(travel_dolphins$V3)
 
 overall_dolphins[overall_dolphins$V1==1,]
-forage_dolphins[forage_dolphins$V1==1,]
+overall_dolphins[overall_dolphins$V1==116,]
+social_dolphins[social_dolphins$V1==132,]
+sum(duplicated(overall_dolphins))
 
+overall_dolphins <- overall_dolphins %>%
+  mutate(type = case_when(
+    do.call(paste0, overall_dolphins) %in% do.call(paste0, social_dolphins) ~ "S",
+    do.call(paste0, overall_dolphins) %in% do.call(paste0, forage_dolphins) ~ "F",
+    do.call(paste0, overall_dolphins) %in% do.call(paste0, travel_dolphins) ~ "T",
+    do.call(paste0, overall_dolphins) %in% do.call(paste0, social_dolphins) & do.call(paste0, overall_dolphins) %in% do.call(paste0, forage_dolphins) ~ "SF",
+    do.call(paste0, overall_dolphins) %in% do.call(paste0, social_dolphins) & do.call(paste0, overall_dolphins) %in% do.call(paste0, travel_dolphins) ~ "ST",
+    do.call(paste0, overall_dolphins) %in% do.call(paste0, forage_dolphins) & do.call(paste0, overall_dolphins) %in% do.call(paste0, travel_dolphins) ~ "FT",
+    do.call(paste0, overall_dolphins) %in% do.call(paste0, social_dolphins) & do.call(paste0, overall_dolphins) %in% do.call(paste0, forage_dolphins) & do.call(paste0, overall_dolphins) %in% do.call(paste0, travel_dolphins) ~ "SFT",
+
+    # Add more conditions and corresponding values as needed
+    TRUE ~ "None"  # Default value if none of the conditions are TRUE
+  ))
+
+overall_dolphins$type <- as.factor(overall_dolphins$type)
+table(overall_dolphins$type)
+
+
+# Create a new dataset where we can identify all of the different relations among delphins
+forage_dolphins$type <- "F"
+social_dolphins$type <- "S"
+travel_dolphins$type <- "T"
+overall_dolphins_label <- rbind(forage_dolphins, social_dolphins, travel_dolphins)
+overall_dolphins_label$type <- as.factor(overall_dolphins_label$type)
+# Assuming your dataset is named "my_data"
+
+duplicates <- duplicated(overall_dolphins_label[, -ncol(overall_dolphins_label)])
+duplicates <- duplicated(overall_dolphins_label[, -c(ncol(overall_dolphins_label), ncol(overall_dolphins_label)-1)])
+duplicate_rows <- overall_dolphins_label[duplicates, ]
+nrow(duplicate_rows)
+
+any()
 
 # Create a graph from the edge list
 net_overall_dolphins <- graph_from_data_frame(overall_dolphins[1:250,], directed = FALSE)
@@ -57,24 +84,27 @@ net_forage_dolphins <- graph_from_data_frame(forage_dolphins, directed = FALSE)
 net_social_dolphins <- graph_from_data_frame(social_dolphins, directed = FALSE)
 net_travel_dolphins <- graph_from_data_frame(travel_dolphins, directed = FALSE)
 
+# Most important one
+net_overall_dolphins_label <- graph_from_data_frame(overall_dolphins_label[1:250,], directed = FALSE)
+
+
 ```
 
 ```{r}
 
 # Set up plot for delphins library(igraph)
-library(igraph)
 library(ggraph)
 library(graphlayouts)
 library(networkdata)
 library(ggforce)
 
 #first stupid graph by me
-autograph(net_overall_dolphins)
+autograph(net_overall_dolphins_label)
 
-ggraph(net_overall_dolphins, "stress", bbox = 15) +
+ggraph(net_overall_dolphins_label, "stress", bbox = 15) +
   geom_edge_link2(aes(edge_colour = V3), edge_linewidth = 0.5) +
-  geom_node_point( shape = 21, size = 3) +
-  geom_node_text(aes(label = name, size = igraph::degree(net_overall_dolphins)),
+  geom_node_point(aes(fill = type), shape = 21, size = 3) +
+  geom_node_text(aes(filter = size >= 26, label = name, size = igraph::degree(net_overall_dolphins_label)),
     family = "serif", repel = TRUE
   ) +
   scale_edge_colour_brewer(palette = "Set1") +
@@ -83,6 +113,8 @@ ggraph(net_overall_dolphins, "stress", bbox = 15) +
   theme_graph() +
   theme(legend.position = "bottom")
 
+# Example greys
+greys
 ggraph(greys, "stress", bbox = 15) +
   geom_edge_link2(aes(edge_colour = node.position), edge_linewidth = 0.5) +
   geom_node_point(aes(fill = sex), shape = 21, size = 3) +
@@ -94,4 +126,15 @@ ggraph(greys, "stress", bbox = 15) +
   scale_size(range = c(2, 5), guide = "none") +
   theme_graph() +
   theme(legend.position = "bottom")
+
+# Example GOT
+ggraph(gotS1, layout = "stress") +
+  geom_edge_link0(aes(edge_linewidth = weight), edge_colour = "grey66") +
+  geom_node_point(aes(fill = clu, size = size), shape = 21) +
+  geom_node_text(aes(filter = size >= 26, label = name), family = "serif") +
+  scale_fill_manual(values = got_palette) +
+  scale_edge_width(range = c(0.2, 3)) +
+  scale_size(range = c(1, 6)) +
+  theme_graph() +
+  theme(legend.position = "none")
 ```
