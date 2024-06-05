@@ -1,0 +1,285 @@
+---
+title: "Untitled"
+author: "Bottino Manuel & Giuseppe Specio"
+date: "Today's Date"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Introduction
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown, see <https://rmarkdown.rstudio.com>.
+
+## R Code
+
+In our case the weight would be -> weighted, with the weights being the half-weight index (HWI)=the number of times dolphins A and B were seen together divided 
+by the total number of times they were seen together plus half the value of when A was seen without B and B was seen without A, and range from 0 for individuals
+ that were never sighted together in groups to 1 for individuals that were always sighted together
+
+```{r setup_import_dataset}
+library(igraph)
+library(tidyverse)
+library(dplyr)
+
+# Import the data
+# Overall dolphin social network
+overall_dolphins <- read.table("mammalia-dolphin-florida-overall.edges")
+# Forage dolphins social network
+forage_dolphins <- read.table("mammalia-dolphin-florida-forage.edges")
+# Social dolphins social network
+social_dolphins <- read.table("mammalia-dolphin-florida-social.edges")
+# Travel dolphins social network
+travel_dolphins <- read.table("mammalia-dolphin-floridatravel.edges")
+
+# Set the weights as factors, this helps with graphs
+overall_dolphins$V3 <- as.factor(overall_dolphins$V3)
+forage_dolphins$V3 <- as.factor(forage_dolphins$V3)
+social_dolphins$V3 <- as.factor(social_dolphins$V3)
+travel_dolphins$V3 <- as.factor(travel_dolphins$V3)
+# These lines convert the third column (V3) in each data frame to a factor, which is useful for graph visualization.
+
+# Checking specific data
+overall_dolphins[overall_dolphins$V1==1,]
+overall_dolphins[overall_dolphins$V1==116,]
+social_dolphins[social_dolphins$V1==132,]
+sum(duplicated(overall_dolphins))
+# Extract rows where the first column (V1) has specific values and check for duplicate rows in the dataframe
+
+# Classifying edges by interaction type
+overall_dolphins <- overall_dolphins %>%
+  mutate(type = case_when(
+    do.call(paste0, overall_dolphins) %in% do.call(paste0, social_dolphins) ~ "S",
+    do.call(paste0, overall_dolphins) %in% do.call(paste0, forage_dolphins) ~ "F",
+    do.call(paste0, overall_dolphins) %in% do.call(paste0, travel_dolphins) ~ "T",
+    do.call(paste0, overall_dolphins) %in% do.call(paste0, social_dolphins) & do.call(paste0, overall_dolphins) %in% do.call(paste0, forage_dolphins) ~ "SF",
+    do.call(paste0, overall_dolphins) %in% do.call(paste0, social_dolphins) & do.call(paste0, overall_dolphins) %in% do.call(paste0, travel_dolphins) ~ "ST",
+    do.call(paste0, overall_dolphins) %in% do.call(paste0, forage_dolphins) & do.call(paste0, overall_dolphins) %in% do.call(paste0, travel_dolphins) ~ "FT",
+    do.call(paste0, overall_dolphins) %in% do.call(paste0, social_dolphins) & do.call(paste0, overall_dolphins) %in% do.call(paste0, forage_dolphins) & do.call(paste0, overall_dolphins) %in% do.call(paste0, travel_dolphins) ~ "SFT",
+
+    # Add more conditions and corresponding values as needed
+    TRUE ~ "None"  # Default value if none of the conditions are TRUE
+  ))
+
+overall_dolphins$type <- as.factor(overall_dolphins$type)
+table(overall_dolphins$type)
+# Classify edges according to their presence in the other interaction-specific data frames (social, forage, travel)
+
+
+# Create a new dataset where we can identify all of the different relations among delphins
+forage_dolphins$type <- "F"
+social_dolphins$type <- "S"
+travel_dolphins$type <- "T"
+overall_dolphins_label <- rbind(forage_dolphins, social_dolphins, travel_dolphins)
+overall_dolphins_label$type <- as.factor(overall_dolphins_label$type)
+# Assign a type label to each data frame and combine all into "overall_dolphins_label and convert the "type" column to a factor
+
+# Identifying duplicates
+duplicates <- duplicated(overall_dolphins_label[, -ncol(overall_dolphins_label)])
+duplicates <- duplicated(overall_dolphins_label[, -c(ncol(overall_dolphins_label), ncol(overall_dolphins_label)-1)])
+duplicate_rows <- overall_dolphins_label[duplicates, ]
+nrow(duplicate_rows)
+any()
+
+# Create a graph from the edge list
+net_overall_dolphins <- graph_from_data_frame(overall_dolphins[1:250,], directed = FALSE) #from the first 250 rows of the overall_dolphins data
+net_forage_dolphins <- graph_from_data_frame(forage_dolphins, directed = FALSE)
+net_social_dolphins <- graph_from_data_frame(social_dolphins, directed = FALSE)
+net_travel_dolphins <- graph_from_data_frame(travel_dolphins, directed = FALSE)
+
+# Most important one
+net_overall_dolphins_label <- graph_from_data_frame(overall_dolphins_label[1:250,], directed = FALSE) #from the first 250 rows of the combined data frame with labeled interaction types
+
+
+```
+
+```{r}
+library(graphlayouts)
+library(ggforce)
+library(dplyr)
+install.packages("ggraph")
+library(ggplot2)
+library(igraph)
+igraph::
+
+packageVersion('ggraph')
+```
+
+
+```{r}
+#first sigraph#first stupid graph by me
+autograph(net_overall_dolphins_label)
+
+library(igraph)
+library(ggraph)
+library(dplyr)
+library(ggrepel)
+
+# Assuming your datasets are already loaded and processed as shown in your provided code
+
+# Create a graph from the edge list and assign the 'type' attribute to vertices
+net_overall_dolphins_label <- graph_from_data_frame(overall_dolphins_label, directed = FALSE)
+
+# Extract the unique vertices and their types
+vertex_data <- overall_dolphins_label %>%
+  select(V1, type) %>%
+  distinct() %>%
+  rename(name = V1)
+
+# Assign the 'type' attribute to the vertices
+V(net_overall_dolphins_label)$type <- vertex_data$type[match(V(net_overall_dolphins_label)$name, vertex_data$name)]
+
+# Verify that the 'type' attribute is correctly assigned
+print(V(net_overall_dolphins_label)$type)
+
+# Plot the graph using ggraph with a stress layout
+ggraph(net_overall_dolphins_label, "stress", bbox = 30) +  # Increase bbox for a larger plot
+  geom_edge_link2(aes(edge_colour = V3), edge_linewidth = 0.5) +
+  geom_node_point(aes(fill = type), shape = 21, size = 3) +
+  geom_node_text(
+    aes(filter = igraph::degree(net_overall_dolphins_label) >= 26, label = name, size = igraph::degree(net_overall_dolphins_label)),
+    family = "sans",  # Change to a more common font
+    repel = TRUE,
+    max.overlaps = Inf  # Increase max.overlaps
+  ) +
+  scale_edge_colour_brewer(palette = "Set1") +
+  scale_size(range = c(4, 10), guide = "none") +
+  theme_graph() +
+  theme(legend.position = "bottom")
+```
+**Stress**: measure of how well the distances between nodes in the layout match the ideal distances based on their connections. The stress layout positions nodes in a way that tries to minimize the stress of the graph: the aim is to create a graph layout that is visually intuitive and accurately represents the underlying structure of the network. 
+
+Through this code we created a detailed visualization of the dolphin interaction network using different attributes for styling nodes and edges. The nodes are colored based on interaction type, and edges are colored based on a specific attribute. Finally, the visualization includes node labels for high-degree nodes.
+
+
+```{r}
+library(igraph)
+library(ggraph)
+library(dplyr)
+library(ggrepel)
+
+# Create a graph from the edge list and assign the 'type' attribute to vertices
+net_overall_dolphins_label <- graph_from_data_frame(overall_dolphins_label, directed = FALSE)
+
+# Extract the unique vertices and their types
+vertex_data <- overall_dolphins_label %>%
+  select(V1, type) %>%
+  distinct() %>%
+  rename(name = V1)
+
+# Assign the 'type' attribute to the vertices
+V(net_overall_dolphins_label)$type <- vertex_data$type[match(V(net_overall_dolphins_label)$name, vertex_data$name)]
+
+# Remove vertices with NA type
+valid_vertices <- !is.na(V(net_overall_dolphins_label)$type)
+net_overall_dolphins_label <- delete.vertices(net_overall_dolphins_label, V(net_overall_dolphins_label)[!valid_vertices])
+
+# Verify that the 'type' attribute is correctly assigned and no NA values
+print(V(net_overall_dolphins_label)$type)
+
+# Filter to keep only nodes with high degree centrality (adjust threshold as needed)
+high_degree_nodes <- V(net_overall_dolphins_label)[degree(net_overall_dolphins_label) >= 90]
+
+# Plot the graph using ggraph with a stress layout
+ggraph(net_overall_dolphins_label, "stress", bbox = 30) +  # Increase bbox for a larger plot
+  geom_edge_link2(aes(edge_colour = V3), edge_linewidth = 0.5) +
+  geom_node_point(aes(fill = type), shape = 21, size = 3) +
+  geom_node_text(
+    aes(filter = name %in% high_degree_nodes$name, label = name, size = igraph::degree(net_overall_dolphins_label)),
+    family = "sans",  # Change to a more common font
+    repel = TRUE,
+    max.overlaps = Inf  # Increase max.overlaps
+  ) +
+  scale_edge_colour_brewer(palette = "Set1") +
+  scale_size(range = c(4, 10), guide = "none") +
+  theme_graph() +
+  theme(legend.position = "bottom")
+```
+
+
+```{r edge_betweenness}
+# Calculate edge betweenness
+E(net_overall_dolphins_label)$betweenness <- edge_betweenness(net_overall_dolphins_label)
+
+# Plot the graph highlighting edge betweenness
+ggraph(net_overall_dolphins_label, "stress", bbox = 30) +
+  geom_edge_link2(aes(edge_colour = betweenness, edge_width = betweenness), edge_linewidth = 0.5) +
+  geom_node_point(aes(fill = type), shape = 21, size = 3) +
+  geom_node_text(
+    aes(filter = igraph::degree(net_overall_dolphins_label) >= 90, label = name, size = igraph::degree(net_overall_dolphins_label)),
+    family = "serif",  # Change to a more common font
+    repel = TRUE,
+    max.overlaps = Inf  # Increase max.overlaps
+  ) +
+  scale_edge_colour_viridis() +  # Corrected function name
+  scale_edge_width(range = c(0.5, 2)) +
+  scale_size(range = c(4, 10), guide = "none") +
+  theme_graph() +
+  theme(legend.position = "bottom")
+```
+
+```{r node_betweenness}
+# Calculate node betweenness
+V(net_overall_dolphins_label)$betweenness <- betweenness(net_overall_dolphins_label)
+
+# Plot the graph highlighting node betweenness
+ggraph(net_overall_dolphins_label, "stress", bbox = 30) +
+  geom_edge_link2(edge_linewidth = 0.5) +
+  geom_node_point(aes(fill = betweenness), shape = 21, size = 3) +
+  geom_node_text(
+    aes(filter = betweenness >= quantile(betweenness, 0.95), label = name, size = igraph::degree(net_overall_dolphins_label)),
+    family = "sans",  # Change to a more common font
+    repel = TRUE,
+    max.overlaps = Inf  # Increase max.overlaps
+  ) +
+  scale_fill_viridis_c() +
+  scale_size(range = c(4, 10), guide = "none") +
+  theme_graph() +
+  theme(legend.position = "bottom")
+```
+```{r node_degree}
+# Plot the graph highlighting node degree
+ggraph(net_overall_dolphins_label, "stress", bbox = 30) +
+  geom_edge_link2(edge_linewidth = 0.5) +
+  geom_node_point(aes(fill = igraph::degree(net_overall_dolphins_label)), shape = 21, size = 3) +
+  geom_node_text(
+    aes(filter = igraph::degree(net_overall_dolphins_label) >= quantile(igraph::degree(net_overall_dolphins_label), 0.95), label = name, size = igraph::degree(net_overall_dolphins_label)),
+    family = "sans",  # Change to a more common font
+    repel = TRUE,
+    max.overlaps = Inf  # Increase max.overlaps
+  ) +
+  scale_fill_viridis_c() +
+  scale_size(range = c(4, 10), guide = "none") +
+  theme_graph() +
+  theme(legend.position = "bottom")
+```
+```{r clustering_coefficient}
+# Calculate clustering coefficient manually
+V(net_overall_dolphins_label)$clustering <- transitivity(net_overall_dolphins_label, type = "local")
+
+# Replace missing values or NaNs with 0
+V(net_overall_dolphins_label)$clustering[is.na(V(net_overall_dolphins_label)$clustering) | is.nan(V(net_overall_dolphins_label)$clustering)] <- 0
+
+# Plot the graph highlighting clustering coefficient
+ggraph(net_overall_dolphins_label, "stress", bbox = 30) +
+  geom_edge_link2(edge_linewidth = 0.5) +
+  geom_node_point(aes(fill = clustering), shape = 21, size = 3) +
+  geom_node_text(
+    aes(filter = clustering >= quantile(clustering, 0.95), label = name, size = igraph::degree(net_overall_dolphins_label)),
+    family = "sans",  # Change to a more common font
+    repel = TRUE,
+    max.overlaps = Inf  # Increase max.overlaps
+  ) +
+  scale_fill_viridis_c() +
+  scale_size(range = c(4, 10), guide = "none") +
+  theme_graph() +
+  theme(legend.position = "bottom")
+
+```
+
