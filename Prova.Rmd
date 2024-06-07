@@ -30,13 +30,13 @@ library(dplyr)
 
 # Import the data
 # Overall dolphin social network
-overall_dolphins <- read.table("mammalia-dolphin-florida-overall.edges")
+overall_dolphins <- read.table("Data/Overall/mammalia-dolphin-florida-overall.edges")
 # Forage dolphins social network
-forage_dolphins <- read.table("mammalia-dolphin-florida-forage.edges")
+forage_dolphins <- read.table("Data/Forage/mammalia-dolphin-florida-forage.edges")
 # Social dolphins social network
-social_dolphins <- read.table("mammalia-dolphin-florida-social.edges")
+social_dolphins <- read.table("Data/Social/mammalia-dolphin-florida-social.edges")
 # Travel dolphins social network
-travel_dolphins <- read.table("mammalia-dolphin-floridatravel.edges")
+travel_dolphins <- read.table("Data/Travel/mammalia-dolphin-floridatravel.edges")
 
 # Set the weights as factors, this helps with graphs
 overall_dolphins$V3 <- as.factor(overall_dolphins$V3)
@@ -76,8 +76,10 @@ table(overall_dolphins$type)
 forage_dolphins$type <- "F"
 social_dolphins$type <- "S"
 travel_dolphins$type <- "T"
+overall_dolphins$type <- "O"
 overall_dolphins_label <- rbind(forage_dolphins, social_dolphins, travel_dolphins)
 overall_dolphins_label$type <- as.factor(overall_dolphins_label$type)
+sum(is.na(overall_dolphins_label))
 # Assign a type label to each data frame and combine all into "overall_dolphins_label and convert the "type" column to a factor
 
 # Identifying duplicates
@@ -88,7 +90,7 @@ nrow(duplicate_rows)
 any()
 
 # Create a graph from the edge list
-net_overall_dolphins <- graph_from_data_frame(overall_dolphins[1:250,], directed = FALSE) #from the first 250 rows of the overall_dolphins data
+net_overall_dolphins <- graph_from_data_frame(overall_dolphins, directed = FALSE) #from the first 250 rows of the overall_dolphins data
 net_forage_dolphins <- graph_from_data_frame(forage_dolphins, directed = FALSE)
 net_social_dolphins <- graph_from_data_frame(social_dolphins, directed = FALSE)
 net_travel_dolphins <- graph_from_data_frame(travel_dolphins, directed = FALSE)
@@ -103,23 +105,23 @@ net_overall_dolphins_label <- graph_from_data_frame(overall_dolphins_label[1:250
 library(graphlayouts)
 library(ggforce)
 library(dplyr)
-install.packages("ggraph")
+# install.packages("ggraph")
 library(ggplot2)
 library(igraph)
-igraph::
 
 packageVersion('ggraph')
 ```
 
 
 ```{r}
-#first sigraph#first stupid graph by me
-autograph(net_overall_dolphins_label)
 
 library(igraph)
 library(ggraph)
 library(dplyr)
 library(ggrepel)
+
+#first sigraph#first stupid graph by me
+autograph(net_overall_dolphins_label)
 
 # Assuming your datasets are already loaded and processed as shown in your provided code
 
