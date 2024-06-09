@@ -1,7 +1,7 @@
 library(graphlayouts)
 library(ggforce)
 library(dplyr)
-# install.packages("ggraph")
+# install.packages("concaveman",repos = "http://cran.us.r-project.org")
 library(ggplot2)
 library(igraph)
 library(tidyverse)
@@ -27,11 +27,12 @@ travel_dolphins$type <- "T"
 overall_dolphins$type <- "O"
 dolphins_label_ <- rbind(overall_dolphins, forage_dolphins, social_dolphins, travel_dolphins)
 dolphins_label_$type <- as.factor(dolphins_label_$type)
+hist(dolphins_label_$V3, breaks = 100)
 dolphins_label_ = mutate(dolphins_label_, sightings = case_when(
-    V3 <= 4 ~ "1-4",
-    V3 > 4 & V3 <= 8 ~ "4-8",
-    V3 > 8 & V3 <= 12 ~ "8-12",
-    V3 > 12 ~ "12-16",
+    V3 == 1 ~ "1",
+    V3 == 2 ~ "2",
+    V3 > 2 & V3 <= 4 ~ "3-4",
+    V3 > 4 ~ ">4",
 ))
 dolphins_label = dolphins_label_[, c(1, 2, 3, 4, 5)]
 head(dolphins_label)
@@ -177,57 +178,124 @@ net_dolphins_label_O
 
 
 # PLOTS
+comps <- components(net_dolphins_label_O_restricted)
+net_dolphins_label_O_restricted <- delete_vertices(net_dolphins_label_O_restricted, which(comps$membership == which.min(comps$csize)))
+
+
 ### STARTING POINT ###
-ggraph(net_dolphins_label_O, "stress", bbox = 15) +
-  geom_edge_link2(aes(edge_colour = type), edge_linewidth = 0.5) +
-  geom_node_point(aes(fill= sightings_per_dolphin), shape = 21, size = 3) +
+# Suggested colors for edge categories and node gradient
+edge_colors <- c("1" = "#377eb8", "2" = "#e41a1c", "3-4" = "#4daf4a", ">4" = "#984ea3")
+node_gradient <- c("#f7fbff", "#08306b")  # From light blue to dark blue
+
+# Plot the network
+ggraph(net_dolphins_label_O_restricted, layout = "stress", bbox = 15) +
+  geom_edge_link2(aes(edge_colour = sightings), edge_linewidth = 0.5) +
+  scale_edge_colour_manual(values = edge_colors) + 
+  geom_node_point(aes(fill = sightings_per_dolphin), shape = 21, size = 3) +
+  scale_fill_gradient(low = node_gradient[1], high = node_gradient[2]) + 
+  geom_node_text(aes(label = name, size = igraph::degree(net_dolphins_label_O_restricted)),
+    family = "serif", repel = TRUE
+  ) +
+  scale_size(range = c(4, 10), guide = "none") +
+  theme_graph() +
+  theme(legend.position = "bottom")
+
+
+# Define edge sizes for each category
+edge_sizes <- c("1" = 0.5, "2" = 1, "3-4" = 1.5, ">4" = 2)
+
+# Plot the network
+ggraph(net_dolphins_label_O, layout = "stress", bbox = 15) +
+  geom_edge_link2(aes(edge_width = sightings), edge_colour = "grey50") +
+  scale_edge_width_manual(values = edge_sizes) + 
+  geom_node_point(aes(fill = sightings_per_dolphin), shape = 21, size = 3) +
+  scale_fill_gradient(low = "blue", high = "red") +  # You can still use the gradient for node colors
   geom_node_text(aes(label = name, size = igraph::degree(net_dolphins_label_O)),
     family = "serif", repel = TRUE
   ) +
-  scale_edge_colour_brewer(palette = "Set1") +
-  #scale_fill_manual(values = c("grey66", "#EEB422", "#424242")) +
   scale_size(range = c(4, 10), guide = "none") +
   theme_graph() +
   theme(legend.position = "bottom")
 
 
-### CLUSTERING ###
-#trying clusters
+############################################################################################################################################################################
+
+######## CLUSTERING ########
+#### NODE CLUSTERING ####
 
 
-bb <- layout_as_backbone(net_dolphins_label, keep = 0.4)
-E(g)$col <- F
-E(g)$col[bb$backbone] <- T
+bb <- layout_as_backbone(net_dolphins_label_O_restricted, keep = 0.4)
+E(net_dolphins_label_O_restricted)$col <- F
+E(net_dolphins_label_O_restricted)$col[bb$backbone] <- T
 
-ggraph(net_dolphins_label, "stress", bbox = 15) +
-  geom_edge_link2(aes(edge_colour = type), edge_linewidth = 0.5) +
-  geom_node_point(aes(fill= sightings_per_dolphin), shape = 21, size = 3) +
-  geom_node_text(aes(label = name, size = igraph::degree(net_dolphins_label)),
-    family = "serif", repel = TRUE
+ggraph(net_dolphins_label_O_restricted,
+       layout = "manual",
+       x = bb$xy[, 1],
+       y = bb$xy[, 2]) +
+  geom_edge_link0(aes(filter = !col, col = col), width = 0.2) +
+  geom_node_voronoi(
+    aes(x, y, fill = sightings_per_dolphin),
+    max.radius = 0.4,
+    expand = unit(-0.5, 'mm'),
+    colour = 'black'
   ) +
-  scale_edge_colour_brewer(palette = "Set1") +
-  #scale_fill_manual(values = c("grey66", "#EEB422", "#424242")) +
-  scale_size(range = c(4, 10), guide = "none") +
+  scale_color_brewer(palette = "Set1") +
+  #scale_fill_brewer(palette = "Set1") +
+  scale_edge_color_manual(values = c(rgb(0, 0, 0, 0.3), rgb(0, 0, 0, 1))) +
+  theme(
+    legend.position = "none",
+    panel.grid = element_blank(),
+    axis.ticks = element_blank(),
+    axis.text = element_blank()
+  ) +
   theme_graph() +
-  theme(legend.position = "bottom")
+  theme(legend.position = "none")
 
-  ggraph(g,
+ggraph(net_dolphins_label_O_restricted,
        layout = "manual",
        x = bb$xy[, 1],
        y = bb$xy[, 2]) +
   geom_edge_link0(aes(col = col), width = 0.2) +
-  geom_node_point(aes(fill = grp), shape = 21, size = 3) +
+  geom_node_point(aes(fill = sightings_per_dolphin), shape = 21, size = 3) +
   geom_mark_hull(
-    aes(x, y, group = grp, fill = grp),
+    aes(x, y, group = sightings_per_dolphin, fill = sightings_per_dolphin),
     concavity = 4,
     expand = unit(2, "mm"),
     alpha = 0.25
   ) +
   scale_color_brewer(palette = "Set1") +
-  scale_fill_brewer(palette = "Set1") +
+  #scale_fill_brewer(palette = "Set1") +
   scale_edge_color_manual(values = c(rgb(0, 0, 0, 0.3), rgb(0, 0, 0, 1))) +
   theme_graph()+
   theme(legend.position = "none")
+
+###### EDGE CLUSTERING ######
+
+forage_dolphins$type <- "F"
+social_dolphins$type <- "S"
+travel_dolphins$type <- "T"
+dolphins_label_prova <- rbind(forage_dolphins, social_dolphins, travel_dolphins)
+dolphins_label_prova$type <- as.factor(dolphins_label_prova$type)
+net_prova <- graph_from_data_frame(dolphins_label_prova, directed = FALSE) #from the first 250 rows of the combined data frame with labeled interaction types
+
+edge_clusters <- cluster_spinglass(net_prova, weights = E(net_prova)$type)
+
+# Assign cluster membership as an edge attribute
+E(net_prova)$cluster <- membership(edge_clusters)
+
+# Get a layout for the network
+layout <- layout_with_fr(net_prova)
+
+# Plot the network clustered by edges
+ggraph(net_prova, layout = "manual", x = layout[, 1], y = layout[, 2]) +
+  geom_edge_link(aes(colour = factor(cluster)), edge_width = 0.5) +
+  geom_node_point(aes(fill = sightings_per_dolphin), shape = 21, size = 3) +
+  scale_fill_gradient(low = "blue", high = "red") +
+  scale_edge_colour_brewer(palette = "Set1") +
+  theme_graph() +
+  theme(legend.position = "bottom")
+
+############################################################################################################################################################################
 
 ### ORGANIZED ###
 ggraph(net_dolphins_label_O, layout = "centrality", cent = graph.strength(net_dolphins_label_O)) +
