@@ -8,133 +8,247 @@ output:
     toc_float: true
 ---
 
-# Introduction
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown, see <https://rmarkdown.rstudio.com>.
-
-## R Code
-
 In our case the weight would be -> weighted, with the weights being the half-weight index (HWI)=the number of times dolphins A and B were seen together divided 
 by the total number of times they were seen together plus half the value of when A was seen without B and B was seen without A, and range from 0 for individuals
  that were never sighted together in groups to 1 for individuals that were always sighted together
 
-```{r setup_import_dataset}
+# Introduction.
+Our network analysis project is based on the research article "The importance of delineating networks by activity type in bottlenose dolphins in Cedar Key, Florida" (Gazda et al, 2015). The goal of this paper was to demonstrate the existence of a fission-fusion structure within these animals. 
 
-#######################################################################################################################
+# Fission-Fusion social structure.
+The fission-fusion social structure is a pattern where the size and composition of animal groups change frequently and rapidly. Individuals split (fission) and merge (fusion) into groups of varying sizes and compositions based on factors like resource availability, predator presence, and social or reproductive needs.
+In this case, three main behavioral contexts were analysed: socializing, travelling, foraging.
+The null hypothesis is that regardless of activity state, the corresponding networks will be similar to each other and to the overall network that does not take activity into account.
+
+# Paper's Key findings.
+The study's findings reveal that dolphins socialize in large groups with preferential associations, travel in smaller groups with selective partners, and forage in very small, weakly connected groups. There is some overlap between socializing and traveling networks but little overlap with foraging networks, indicating that social bonds are less important during foraging.
+
+# Data collection.
+Data were collected from 147 resident bottlenose dolphins in Cedar Key, Florida, over two periods in 2008 and 2010. Dolphins were observed for socializing, traveling, and foraging behaviors. Individual dolphins were identified using photographs of their dorsal fins. Group compositions were recorded, excluding sightings of the same group within an hour or on the same day to avoid non-independent sampling.
+
+# Network Construction
+In this context, the vertices in the network represent the individual dolphins, and the edges represent associations between the corresponding dolphins.
+
+*Four main networks* were used: an overall network that does not take behavior into account, and the socialize network, the travel network and the forage network that correspond to their respective behaviors. In addition, a comprehensive network was created as well, combining all the other four together.
+
+Each network was simple, undirected, and weighted, with edge weights calculated using the half-weight index (HWI): the number of times dolphins A and B were seen together divided by the total number of times they were seen together plus half the value of when A was seen without B and B was seen without A, and range from 0 for individuals that were never sighted together in groups to 1 for individuals that were always sighted together. This method gives different weights to associations based on their strength, helping to filter out weak associations and reducing sampling bias.
+
+Networks were pruned by removing dolphins sighted fewer than three times to ensure significant patterns of association.
+
+# Project Objective
+Our project aims to visualize the findings from the paper using the most appropriate graphs. We will employ network analysis tools to graphically represent the different behavioral networks (socializing, traveling, foraging) of the Cedar Key dolphins.
+
+Additionally, we will propose new perspectives beyond those presented in the paper and graphically represent these insights as well.    QUESTO INVECE QUANDO FAI  summary(overall_dolphins_label)
+* Summary explanation:
+  + V1 and V2: there are 291 vertices. The 147 (x2 = 294) dolphins of interest were recorded in two distinct periods, and were recorded in the dataset as two different dolphins. The 3 remaining points were caused by the absence of at least three sightings of 3 dolphins.
+  + Type: categorical variable explaining the type of activity (Social, Travel, Forage) the two dolphins were performing at the moment of the sighting. The fourth type, "O", refers to an edge where the activity that was being performed was not of interest at the moment of the sighting. It allows to test the null hypothesis: there is no difference in the networks for specific activities and the overall network, where activity was not of interest.
+  + Sightings: amount of times that two dolphins were seen together. It helps assessing the weight of the edge.
+
+```{r libraries}
+library(graphlayouts)
+library(ggforce)
+library(dplyr)
+# install.packages("extrafont",repos = "http://cran.us.r-project.org")
+library(ggplot2)
 library(igraph)
 library(tidyverse)
-library(dplyr)
+library(ggraph)
+library(ggrepel)
+library(networkdata)
+library(knitr)
+library(extrafont)
+loadfonts(device = "pdf")
+```
+```{r setup_import_dataset}
+
 # Import the data
 # Overall dolphin social network
-overall_dolphins <- read.table("Data/Delfini Florida/Overall/mammalia-dolphin-florida-overall.edges")
+overall_dolphins <- read.table("Data/Overall/mammalia-dolphin-florida-overall.edges")
 # Forage dolphins social network
-forage_dolphins <- read.table("Data/Delfini Florida/Forage/mammalia-dolphin-florida-forage.edges")
+forage_dolphins <- read.table("Data/Forage/mammalia-dolphin-florida-forage.edges")
 # Social dolphins social network
-social_dolphins <- read.table("Data/Delfini Florida/Social/mammalia-dolphin-florida-social.edges")
+social_dolphins <- read.table("Data/Social/mammalia-dolphin-florida-social.edges")
 # Travel dolphins social network
-travel_dolphins <- read.table("Data/Delfini Florida/Travel/mammalia-dolphin-floridatravel.edges")
-
-# Set the wright as factor, this helps with graphs
-overall_dolphins$V3 <- as.factor(overall_dolphins$V3)
-forage_dolphins$V3 <- as.factor(forage_dolphins$V3)
-social_dolphins$V3 <- as.factor(social_dolphins$V3)
-travel_dolphins$V3 <- as.factor(travel_dolphins$V3)
-
-overall_dolphins[overall_dolphins$V1==1,]
-overall_dolphins[overall_dolphins$V1==116,]
-social_dolphins[social_dolphins$V1==132,]
-sum(duplicated(overall_dolphins))
-
-overall_dolphins <- overall_dolphins %>%
-  mutate(type = case_when(
-    do.call(paste0, overall_dolphins) %in% do.call(paste0, social_dolphins) ~ "S",
-    do.call(paste0, overall_dolphins) %in% do.call(paste0, forage_dolphins) ~ "F",
-    do.call(paste0, overall_dolphins) %in% do.call(paste0, travel_dolphins) ~ "T",
-    do.call(paste0, overall_dolphins) %in% do.call(paste0, social_dolphins) & do.call(paste0, overall_dolphins) %in% do.call(paste0, forage_dolphins) ~ "SF",
-    do.call(paste0, overall_dolphins) %in% do.call(paste0, social_dolphins) & do.call(paste0, overall_dolphins) %in% do.call(paste0, travel_dolphins) ~ "ST",
-    do.call(paste0, overall_dolphins) %in% do.call(paste0, forage_dolphins) & do.call(paste0, overall_dolphins) %in% do.call(paste0, travel_dolphins) ~ "FT",
-    do.call(paste0, overall_dolphins) %in% do.call(paste0, social_dolphins) & do.call(paste0, overall_dolphins) %in% do.call(paste0, forage_dolphins) & do.call(paste0, overall_dolphins) %in% do.call(paste0, travel_dolphins) ~ "SFT",
-
-    # Add more conditions and corresponding values as needed
-    TRUE ~ "None"  # Default value if none of the conditions are TRUE
-  ))
-
-overall_dolphins$type <- as.factor(overall_dolphins$type)
-table(overall_dolphins$type)
-
+travel_dolphins <- read.table("Data/Travel/mammalia-dolphin-floridatravel.edges")
 
 # Create a new dataset where we can identify all of the different relations among delphins
 forage_dolphins$type <- "F"
 social_dolphins$type <- "S"
 travel_dolphins$type <- "T"
-overall_dolphins_label <- rbind(forage_dolphins, social_dolphins, travel_dolphins)
-overall_dolphins_label$type <- as.factor(overall_dolphins_label$type)
-# Assuming your dataset is named "my_data"
-
-duplicates <- duplicated(overall_dolphins_label[, -ncol(overall_dolphins_label)])
-duplicates <- duplicated(overall_dolphins_label[, -c(ncol(overall_dolphins_label), ncol(overall_dolphins_label)-1)])
-duplicate_rows <- overall_dolphins_label[duplicates, ]
-nrow(duplicate_rows)
-
-any()
-
-# Create a graph from the edge list
-net_overall_dolphins <- graph_from_data_frame(overall_dolphins[1:250,], directed = FALSE)
-net_forage_dolphins <- graph_from_data_frame(forage_dolphins, directed = FALSE)
-net_social_dolphins <- graph_from_data_frame(social_dolphins, directed = FALSE)
-net_travel_dolphins <- graph_from_data_frame(travel_dolphins, directed = FALSE)
-
-# Most important one
-net_overall_dolphins_label <- graph_from_data_frame(overall_dolphins_label[1:250,], directed = FALSE)
+overall_dolphins$type <- "O"
+dolphins_label_ <- rbind(overall_dolphins, forage_dolphins, social_dolphins, travel_dolphins)
+dolphins_label_$type <- as.factor(dolphins_label_$type)
+hist(dolphins_label_$V3, breaks = 100)
+dolphins_label_ = mutate(dolphins_label_, sightings = case_when(
+    V3 == 1 ~ "1",
+    V3 == 2 ~ "2",
+    V3 > 2 & V3 <= 4 ~ "3-4",
+    V3 > 4 ~ ">4",
+))
+dolphins_label = dolphins_label_[, c(1, 2, 3, 4, 5)]
+head(dolphins_label)
 
 
 ```
 
-```{r}
+# Data preprocessing and network creation
 
-# Set up plot for delphins library(igraph)
-library(ggraph)
-library(graphlayouts)
-library(networkdata)
-library(ggforce)
 
-#first stupid graph by me
-autograph(net_overall_dolphins_label)
+```{r networks}
+# Function to create a network whatever the dataset
+net_dolphins = function(df){
 
-ggraph(net_overall_dolphins_label, "stress", bbox = 15) +
-  geom_edge_link2(aes(edge_colour = V3), edge_linewidth = 0.5) +
-  geom_node_point(aes(fill = type), shape = 21, size = 3) +
-  geom_node_text(aes(filter = size >= 26, label = name, size = igraph::degree(net_overall_dolphins_label)),
-    family = "serif", repel = TRUE
-  ) +
-  scale_edge_colour_brewer(palette = "Set1") +
-  #scale_fill_manual(values = c("grey66", "#EEB422", "#424242")) +
+  sightings_per_dolphin_1 = group_by(df, V1) %>% summarise(sightings = sum(V3))
+  sightings_per_dolphin_2 = group_by(df, V2) %>% summarise(sightings = sum(V3))
+
+  # Merge the datasets based on the "name" column
+  merged_data <- merge(sightings_per_dolphin_1, sightings_per_dolphin_2, by.x = "V1", by.y = "V2", all = TRUE)
+  head(merged_data)
+  # Replace missing values with 0
+  merged_data$sightings.x[is.na(merged_data$sightings.x)] <- 0
+  merged_data$sightings.y[is.na(merged_data$sightings.y)] <- 0
+
+  # Create a new column with the sum of occurrences
+  merged_data$sightings <- merged_data$sightings.x + merged_data$sightings.y
+  head(merged_data)
+
+  # Remove unnecessary columns
+  merged_data <- select(merged_data, V1, sightings)
+
+  # Create our network
+  net_dolphins_label <- graph_from_data_frame(df, directed = FALSE) #from the first 250 rows of the combined data frame with labeled interaction types
+  # Add the sightings column to the network
+  names_net <- as.numeric(V(net_dolphins_label)$name)
+  merged_data = merged_data[order(match(merged_data$V1, names_net)),]
+  net_dolphins_label=set_vertex_attr(net_dolphins_label, "sightings_per_dolphin", index = V(net_dolphins_label), merged_data$sightings)
+  return(net_dolphins_label)
+} 
+
+dolphins_label_F = dolphins_label[dolphins_label$type == "F",]
+dolphins_label_S = dolphins_label[dolphins_label$type == "S",]
+dolphins_label_T = dolphins_label[dolphins_label$type == "T",]
+dolphins_label_O = dolphins_label[dolphins_label$type == "O",]
+
+net_forage = net_dolphins(dolphins_label_F)
+net_social = net_dolphins(dolphins_label_S)
+net_travel = net_dolphins(dolphins_label_T)
+net_overall = net_dolphins(dolphins_label_O)
+net = net_dolphins(dolphins_label)
+```
+
+# Network visualization
+```{r vis_general}
+# Suggested colors for edge categories and node gradient
+edge_colors <- c("1" = "#377eb8", "2" = "#e41a1c", "3-4" = "#4daf4a", ">4" = "#984ea3")
+node_gradient <- c("#f7fbff", "#08306b")  # From light blue to dark blue
+edge_colors_general <- c("F" = "#377eb8", "S" = "#e41a1c", "T" = "#4daf4a", "O" = "#984ea3")
+
+# Plot the network
+ggraph(net_overall, layout = "stress", bbox = 15) +
+  geom_edge_link2(aes(edge_colour = sightings), edge_linewidth = 0.5) +
+  scale_edge_colour_manual(values = edge_colors) + 
+  geom_node_point(aes(fill = sightings_per_dolphin, size = sightings_per_dolphin), shape=21) +
+  scale_fill_gradient(low = node_gradient[1], high = node_gradient[2]) + 
+  geom_node_text(aes(label = name), vjust = 0.5, hjust = 0.5,
+                 family = "serif", size = 3) +  # Adjust font size as needed
   scale_size(range = c(4, 10), guide = "none") +
+  theme(legend.position = "bottom")
+
+# general one (total confusion)
+ggraph(net, layout = "stress", bbox = 15) +
+  geom_edge_link2(aes(edge_colour = type), edge_linewidth = 0.5) +
+  scale_edge_colour_manual(values = edge_colors_general) + 
+  geom_node_point(aes(fill = sightings_per_dolphin, size = sightings_per_dolphin), shape=21) +
+  scale_fill_gradient(low = node_gradient[1], high = node_gradient[2]) + 
+  geom_node_text(aes(label = name), vjust = 0.5, hjust = 0.5,
+                 family = "serif", size = 3) +  # Adjust font size as needed
+  scale_size(range = c(4, 10), guide = "none") +
+  theme(legend.position = "bottom")
+```
+
+```{r vis_circular}
+comps <- components(net_overall)
+net_O_restricted <- delete_vertices(net_overall, which(comps$membership == which.min(comps$csize)))
+
+comps <- components(net_O_restricted)
+net_O_restricted <- delete_vertices(net_O_restricted, which(comps$membership == which.min(comps$csize)))
+
+
+
+ggraph(net_O_restricted, layout = "centrality", cent = graph.strength(net_O_restricted)) +
+  geom_edge_link2(aes(edge_colour = sightings), edge_linewidth = 0.5) +
+  scale_edge_colour_manual(values = edge_colors) + 
+  geom_node_point(aes(fill = sightings_per_dolphin, size = sightings_per_dolphin), shape=21) +
+  scale_fill_gradient(low = node_gradient[1], high = node_gradient[2]) + 
+  geom_node_text(aes(label = name), vjust = 0.5, hjust = 0.5,
+                 family = "serif", size = 3) +  # Adjust font size as needed
+  scale_size(range = c(4, 10), guide = "none") +
+  coord_fixed() +
   theme_graph() +
   theme(legend.position = "bottom")
 
-# Example greys
-greys
-ggraph(greys, "stress", bbox = 15) +
-  geom_edge_link2(aes(edge_colour = node.position), edge_linewidth = 0.5) +
-  geom_node_point(aes(fill = sex), shape = 21, size = 3) +
-  geom_node_text(aes(label = name, size = igraph::degree(greys)),
-    family = "serif", repel = TRUE
-  ) +
-  scale_edge_colour_brewer(palette = "Set1") +
-  scale_fill_manual(values = c("grey66", "#EEB422", "#424242")) +
-  scale_size(range = c(2, 5), guide = "none") +
-  theme_graph() +
-  theme(legend.position = "bottom")
+```
 
-# Example GOT
-ggraph(gotS1, layout = "stress") +
-  geom_edge_link0(aes(edge_linewidth = weight), edge_colour = "grey66") +
-  geom_node_point(aes(fill = clu, size = size), shape = 21) +
-  geom_node_text(aes(filter = size >= 26, label = name), family = "serif") +
-  scale_fill_manual(values = got_palette) +
-  scale_edge_width(range = c(0.2, 3)) +
-  scale_size(range = c(1, 6)) +
-  theme_graph() +
-  theme(legend.position = "none")
+# Research Findings + Graphical Representation
+
+Here we report the research study findings, we explain what does it mean in terms of graph construction and then proceed to propose the approprate graphs.
+```{r table_2_3}
+knitr::include_graphics("Table_2.png")
+knitr::include_graphics("Table_3.png")
+```
+
+* There are preferential associations between individuals in the overall network, the socialize network and the travel network, but not in the forage network (table 2). This is not an artefact of sample size: the number of sightings in the forage network (153) is greater than that in the travel network (77) and socialize network (38).
+  + Node degree distribution plots helps to visualize preferential associations. Nodes with higher degrees have more connections, indicating preferential associations. 
+  
+Social Network: Lower degree distribution in the social network indicates that dolphins in this network have fewer connections or associations compared to the forage network.
+
+Forage Network: Higher degree distribution in the forage network suggests that dolphins in this network have more connections or associations compared to the social network.
+
+```{r}
+plot(degree(net_social), main="Social Network", xlab="Degree", ylab="Frequency")
+plot(degree(net_forage), main="Forage Network", xlab="Degree", ylab="Frequency") 
+```
+**Socialise network** 
+* Individuals have strong and repeated connections to many other individuals.
+  + Highest average degree, Highest average strength, Highest average edge weight.
+
+
+* Socializing happens in large groups and these groups are not exclusive.
+  + Largest group size per sighting, Highest size per community, Least number of communities, Fewest connected components.
+  
+
+* Dolphins that are connected to a particular dolphin are more likely to be connected to one another.
+  + Highest clustering coefficient.
+
+**Travel network**
+* Dolphins in this network do not have strong and repeated connections to many others except their preferential associates   + Lower average degree, Lower average strength, Lower average edge weight).
+
+* Travelling happens in smaller groups than socializing.
+  + Smaller group sizes per sighting, Smaller community size, Larger number of communities, Larger number of connected components. 
+  
+* Dolphins that are connected to a particular dolphin are less likely to be connected to each other.
+  + Smaller clustering coefficient.
+
+* Though dolphins do have preferential associations while travelling, they do not travel in groups as large as those they socialize in or as small as they forage in.
+
+**Forage network**
+* The dolphins in the forage network have the weakest and least repeated connections to other individuals.
+  + Lower average degree, Lower average strength, Lowest average edge weight). 
+
+* Foraging happens in smaller groups than any other activity and these groups are exclusive with fewer links to other foraging groups or they are more likely in groups that never forage together. 
+  + Smallest group sizes per sighting, Smallest community size; Highest number of communities or Highest number of connected components.
+  
+* Foraging dolphins that are connected to other foraging dolphins are not as likely to be connected to each other as they are in the socialize and forage networks.
+  + Lowest clustering coefficient)
+  
+**Community Overlap**
+```{r table_4}
+knitr::include_graphics("Table_4.png")
+```
+A large community overlap between two networks means dolphins that tend to associate closely with each other in one network also associate closely in the other. * The socialize network and the travel network have the most substantial community structure overlap, the travel network and the forage network have the least and the socialize network and the forage network have an intermediate value. The overlap between the overall network and each activity network is less than that of the activity networks to each other.
+
+# Descriptive statistics
+
+```{r }
+
 ```
