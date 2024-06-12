@@ -47,7 +47,7 @@ E(line_graph)$weight <- 1
 g1 <- contract(line_graph, factor(V(line_graph)$type),
                vertex.attr.comb = function(x) levels(factor(x)))
 # Remove loop edges and compute the sum of edge weight by group
-g1 <- simplify(g1, edge.attr.comb = "sum")
+g1 <- simplify(g1)
 
 plot(g1, edge.width = E(g1)$weight, vertex.label = levels(as.factor(V(line_graph)$type)), vertex.color = V(g1))
 
