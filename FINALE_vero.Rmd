@@ -1,0 +1,347 @@
+---
+title: "Untitled"
+author: "Bottino Manuel & Giuseppe Specio"
+date: "Today's Date"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+In our case the weight would be -> weighted, with the weights being the half-weight index (HWI)=the number of times dolphins A and B were seen together divided 
+by the total number of times they were seen together plus half the value of when A was seen without B and B was seen without A, and range from 0 for individuals
+ that were never sighted together in groups to 1 for individuals that were always sighted together
+
+# Introduction.
+Our network analysis project is based on the research article "The importance of delineating networks by activity type in bottlenose dolphins in Cedar Key, Florida" (Gazda et al, 2015). The goal of this paper was to demonstrate the existence of a fission-fusion structure within these animals. 
+
+# Fission-Fusion social structure.
+The fission-fusion social structure is a pattern where the size and composition of animal groups change frequently and rapidly. Individuals split (fission) and merge (fusion) into groups of varying sizes and compositions based on factors like resource availability, predator presence, and social or reproductive needs.
+In this case, three main behavioral contexts were analysed: socializing, travelling, foraging.
+The null hypothesis is that regardless of activity state, the corresponding networks will be similar to each other and to the overall network that does not take activity into account.
+
+# Paper's Key findings.
+The study's findings reveal that dolphins socialize in large groups with preferential associations, travel in smaller groups with selective partners, and forage in very small, weakly connected groups. There is some overlap between socializing and traveling networks but little overlap with foraging networks, indicating that social bonds are less important during foraging.
+
+# Data collection.
+Data were collected from 147 resident bottlenose dolphins in Cedar Key, Florida, over two periods in 2008 and 2010. Dolphins were observed for socializing, traveling, and foraging behaviors. Individual dolphins were identified using photographs of their dorsal fins. Group compositions were recorded, excluding sightings of the same group within an hour or on the same day to avoid non-independent sampling.
+
+# Network Construction and data sampling
+In this context, the vertices in the network represent the individual dolphins, and the edges represent associations between the corresponding dolphins.
+
+*Four main networks* were used: an overall network that does not take behavior into account, and the socialize network, the travel network and the forage network that correspond to their respective behaviors. In addition, a comprehensive network was created as well, combining all the other four together.
+
+Each network was simple, undirected, and weighted, with edge weights calculated using the half-weight index (HWI): the number of times dolphins A and B were seen together divided by the total number of times they were seen together plus half the value of when A was seen without B and B was seen without A, and range from 0 for individuals that were never sighted together in groups to 1 for individuals that were always sighted together. This method gives different weights to associations based on their strength, helping to filter out weak associations and reducing sampling bias.
+
+Networks were pruned by removing dolphins sighted fewer than three times to ensure significant patterns of association.
+
+# Project Objective
+Our project aims to visualize the findings from the paper using the most appropriate graphs. We will employ network analysis tools to graphically represent the different behavioral networks (socializing, traveling, foraging) of the Cedar Key dolphins.
+
+Additionally, we will propose new perspectives beyond those presented in the paper and graphically represent these insights as well.    QUESTO INVECE QUANDO FAI  summary(overall_dolphins_label)
+* Summary explanation:
+  + V1 and V2: there are 291 vertices. The 147 (x2 = 294) dolphins of interest were recorded in two distinct periods, and were recorded in the dataset as two different dolphins. The 3 remaining points were caused by the absence of at least three sightings of 3 dolphins.
+  + Type: categorical variable explaining the type of activity (Social, Travel, Forage) the two dolphins were performing at the moment of the sighting. The fourth type, "O", refers to an edge where the activity that was being performed was not of interest at the moment of the sighting. It allows to test the null hypothesis: there is no difference in the networks for specific activities and the overall network, where activity was not of interest.
+  + Sightings: amount of times that two dolphins were seen together. It helps assessing the weight of the edge.
+
+
+```{r libraries}
+library(graphlayouts)
+library(ggforce)
+library(gridExtra)
+library(dplyr)
+# install.packages("seriation",repos = "http://cran.us.r-project.org")
+library(seriation)
+library(tidygraph)
+library(ggplot2)
+library(igraph)
+library(tidyverse)
+library(ggraph)
+library(ggrepel)
+library(networkdata)
+library(knitr)
+library(extrafont)
+loadfonts(device = "pdf")
+```
+
+```{r setup_import_dataset}
+
+# Import the data
+# Overall dolphin social network
+net_overall <- read_graph("Data/all.gml", format = "gml")
+# Forage dolphins social network
+net_forage <- read_graph("Data/forage.gml", format = "gml")
+# Social dolphins social network
+net_social <- read_graph("Data/socialise.gml", format = "gml")
+# Travel dolphins social network
+net_travel <- read_graph("Data/travel.gml", format = "gml")
+```
+
+# Network visualization
+```{r vis_general}
+# Suggested colors for edge categories and node gradient
+edge_colors <- c("1" = "#377eb8", "2" = "#e41a1c", "3-4" = "#4daf4a", ">4" = "#984ea3")
+node_gradient <- c("#f7fbff", "#08306b")  # From light blue to dark blue
+edge_colors_general <- c("F" = "#377eb8", "S" = "#e41a1c", "T" = "#4daf4a", "O" = "#984ea3")
+
+# Plot the network
+ggraph(net_overall, layout = "stress", bbox = 15) +
+  geom_edge_link2(aes(edge_colour = hwi), edge_linewidth = 0.5) +
+  geom_node_point(aes(fill = sightings, size = degree), shape=21) +
+  scale_fill_gradient(low = node_gradient[1], high = node_gradient[2]) + 
+  geom_node_text(aes(label = id), vjust = 0.5, hjust = 0.5,
+                 family = "serif", size = 3) +  # Adjust font size as needed
+  scale_size(range = c(4, 10), guide = "none") +
+  theme(legend.position = "bottom")
+
+# general one (total confusion)
+ggraph(net, layout = "stress", bbox = 15) +
+  geom_edge_link2(aes(edge_colour = type), edge_linewidth = 0.5) +
+  scale_edge_colour_manual(values = edge_colors_general) + 
+  geom_node_point(aes(fill = sightings_per_dolphin, size = sightings_per_dolphin), shape=21) +
+  scale_fill_gradient(low = node_gradient[1], high = node_gradient[2]) + 
+  geom_node_text(aes(label = name), vjust = 0.5, hjust = 0.5,
+                 family = "serif", size = 3) +  # Adjust font size as needed
+  scale_size(range = c(4, 10), guide = "none") +
+  theme(legend.position = "bottom")
+```
+
+```{r vis_circular}
+comps <- components(net_overall)
+net_O_restricted <- delete_vertices(net_overall, which(comps$membership == which.min(comps$csize)))
+
+comps <- components(net_O_restricted)
+net_O_restricted <- delete_vertices(net_O_restricted, which(comps$membership == which.min(comps$csize)))
+
+
+
+ggraph(net_O_restricted, layout = "centrality", cent = graph.strength(net_O_restricted)) +
+  geom_edge_link2(aes(edge_colour = sightings), edge_linewidth = 0.5) +
+  scale_edge_colour_manual(values = edge_colors) + 
+  geom_node_point(aes(fill = sightings_per_dolphin, size = sightings_per_dolphin), shape=21) +
+  scale_fill_gradient(low = node_gradient[1], high = node_gradient[2]) + 
+  geom_node_text(aes(label = name), vjust = 0.5, hjust = 0.5,
+                 family = "serif", size = 3) +  # Adjust font size as needed
+  scale_size(range = c(4, 10), guide = "none") +
+  coord_fixed() +
+  theme_graph() +
+  theme(legend.position = "bottom")
+
+```
+
+```{r vis_matrix}
+library(gridExtra)
+
+# Create individual graphs for each type
+graph_F <- ggraph(net_overall, layout = 'matrix', sort.by = node_rank_spectral()) + 
+    geom_edge_point(mirror = TRUE) + 
+    coord_fixed() +
+    ggtitle("Forage Dolphins")
+
+graph_T <- ggraph(dolphins_label_T, layout = 'matrix', sort.by = node_rank_spectral()) + 
+    geom_edge_point(mirror = TRUE) + 
+    coord_fixed() +
+    ggtitle("Travel Dolphins")
+
+graph_S <- ggraph(dolphins_label_S, layout = 'matrix', sort.by = node_rank_spectral()) + 
+    geom_edge_point(mirror = TRUE) + 
+    coord_fixed() +
+    ggtitle("Social Dolphins")
+
+graph_O <- ggraph(dolphins_label_O, layout = 'matrix', sort.by = node_rank_spectral()) + 
+    geom_edge_point(mirror = TRUE) + 
+    coord_fixed() +
+    ggtitle("Overall Dolphins")
+
+# Combine the graphs into a grid
+grid <- grid.arrange(graph_F, graph_T, graph_S, graph_O, nrow = 2, ncol = 2)
+
+# Display the grid
+grid
+
+
+```
+
+
+
+
+# Descriptive statistics
+
+```{r avg_degree_strength}
+# Calculate average degree for each network
+degree_S <- degree(net_social)
+degree_F <- degree(net_forage)
+degree_O <- degree(net_overall)
+degree_T <- degree(net_travel)
+
+avg_degree_social <- mean(degree_S)
+avg_degree_forage <- mean(degree_F)
+avg_degree_net <- mean(degree_O)
+avg_degree_travel <- mean(degree_T)
+
+# Create a data frame for plotting
+data_degree <- data.frame(Network = c("net_social", "net_forage", "net", "net_travel"),
+                                     Avg_Degree = c(avg_degree_social, avg_degree_forage, avg_degree_net, avg_degree_travel))
+
+# Plot average degree using ggraph
+g_degree <- ggplot(data_degree, aes(x = Network, y = Avg_Degree, fill = Network)) +
+    geom_col() +
+    geom_text(aes(label = round(Avg_Degree, 2)), vjust = -0.5) +
+    labs(title = "Average Degree Comparison",
+             x = "Network",
+             y = "Average Degree") +
+    theme_minimal()
+print(g_degree)
+
+strength_S <- strength(net_social)
+strength_F <- strength(net_forage)
+strength_O <- strength(net_overall)
+strength_T <- strength(net_travel)
+
+avg_strength_social <- mean(strength_S)
+avg_strength_forage <- mean(strength_F)
+avg_strength_net <- mean(strength_O)
+avg_strength_travel <- mean(strength_T)
+
+# Create a data frame for plotting
+data_strength <- data.frame(Network = c("net_social", "net_forage", "net", "net_travel"),
+                                     Avg_Strength = c(avg_strength_social, avg_strength_forage, avg_strength_net, avg_strength_travel))
+
+# Plot average strength using ggraph
+g_strength <- ggplot(data_strength, aes(x = Network, y = Avg_Strength, fill = Network)) +
+    geom_col() +
+    geom_text(aes(label = round(Avg_Strength, 2)), vjust = -0.5) +
+    labs(title = "Average Strength Comparison",
+             x = "Network",
+             y = "Average Strength") +
+    theme_minimal()
+print(g_strength)
+
+```
+```{r degree_hist}
+# Degree histogram
+hist(degree_S, main="Social Network", xlab="Degree", ylab="Frequency")
+hist(degree_F, main="Forage Network", xlab="Degree", ylab="Frequency")
+hist(degree_T, main="Travel Network", xlab="Degree", ylab="Frequency")
+hist(degree_O, main="Overall Network", xlab="Degree", ylab="Frequency")
+
+```
+
+```{r strength_vs_degree}
+# Create a data frame for plotting
+plot(degree_S, strength_S)
+plot(degree_F, strength_F)
+plot(degree_T, strength_T)
+plot(degree_O, strength_O)
+
+```
+```{r degree_distribution}
+# Degree distribution
+degree_dist <- function (g) {
+  fd <- table(degree(g))
+  d <- as.numeric(names(fd)) + 1 # degree + 1
+  list(d = d, fd = as.numeric(fd))
+}
+dd_S <- degree_dist(net_social)
+dd_F <- degree_dist(net_forage)
+dd_T <- degree_dist(net_travel)
+dd_O <- degree_dist(net_overall)
+
+# Plot degree distribution
+par(mfrow = c(2, 2))
+
+plot(dd_S$d,dd_S$fd, main="Social Network", xlab="Degree", ylab="Frequency")
+plot(dd_F$d,dd_F$fd, main="Forage Network", xlab="Degree", ylab="Frequency")
+plot(dd_T$d,dd_T$fd, main="Travel Network", xlab="Degree", ylab="Frequency")
+plot(dd_O$d,dd_O$fd, main="Overall Network", xlab="Degree", ylab="Frequency")
+
+
+```
+
+```{r strength_distribution}
+# Strength distribution
+strength_dist <- function (g, weights = NULL) {
+  fs <- table(strength(g, weights = weights))
+  s <- as.numeric(names(fs)) + 1 # degree + 1
+  list(s = s, fs = as.numeric(fs))
+}
+sd_S <- strength_dist(net_social, weights= E(net_social)$weight)
+sd_F <- strength_dist(net_forage, weights= E(net_forage)$weight)
+sd_T <- strength_dist(net_travel, weights= E(net_travel)$weight)
+sd_O <- strength_dist(net_overall, weights= E(net_overall)$weight)
+
+# Plot strength distribution
+par(mfrow = c(2, 2))
+
+plot(sd_S$s,sd_S$fs , main="Social Network", xlab="Strength", ylab="Frequency")
+plot(sd_F$s,sd_F$fs , main="Forage Network", xlab="Strength", ylab="Frequency")
+plot(sd_T$s,sd_T$fs , main="Travel Network", xlab="Strength", ylab="Frequency")
+plot(sd_O$s,sd_O$fs , main="Overall Network", xlab="Strength", ylab="Frequency")
+
+```
+
+```{r betweenness}
+# Calculate betweenness centrality for each network
+betweenness_S <- betweenness(net_social)
+betweenness_F <- betweenness(net_forage)
+betweenness_O <- betweenness(net_overall)
+betweenness_T <- betweenness(net_travel)
+
+# betweenness distribution
+
+
+
+netstat_dist <- function (s, breaks) { # statistic s could be anything
+  h <- hist(s, plot = FALSE, breaks)
+  bin_breaks <- as.vector(stats::filter(h$breaks, c(1, 1) / 2))
+  bin_breaks <- bin_breaks[-length(h$breaks)]
+  list(s = bin_breaks[h$counts > 0], fs = h$counts[h$counts > 0])
+}
+
+bd_S <- netstat_dist(betweenness_S, 100)
+bd_F <- netstat_dist(betweenness_F, 100)
+bd_T <- netstat_dist(betweenness_T, 100)
+bd_O <- netstat_dist(betweenness_O, 100)
+
+
+```
+
+```{r closeness}
+# Calculate closeness centrality for each network
+closeness_S <- closeness(net_social)
+closeness_F <- closeness(net_forage)
+closeness_O <- closeness(net_overall)
+closeness_T <- closeness(net_travel)
+
+```
+
+```{r transitivity}
+# Calculate transitivity for each network
+transitivity_S <- transitivity(net_social)
+transitivity_F <- transitivity(net_forage)
+transitivity_O <- transitivity(net_overall)
+transitivity_T <- transitivity(net_travel)
+
+```
+
+```{r eigen_centrality}
+# Calculate eigenvector centrality for each network
+eigen_S <- eigen_centrality(net_social)$vector
+eigen_F <- eigen_centrality(net_forage)$vector
+eigen_O <- eigen_centrality(net_overall)$vector
+eigen_T <- eigen_centrality(net_travel)$vector
+
+
+```
+
+```{r density}
+# Calculate density for each network
+density_S <- edge_density(net_social)
+density_F <- edge_density(net_forage)
+density_O <- edge_density(net_overall)
+density_T <- edge_density(net_travel)
+
+```
+```{r EGO_network}
+
+```
