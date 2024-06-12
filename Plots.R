@@ -28,36 +28,6 @@ ggraph(net_dolphins_label, layout = "stress", bbox = 15) +
   scale_size(range = c(4, 10), guide = "none") +
   theme_graph() +
   theme(legend.position = "bottom")
-############################################################################################################################################################################
-### LINE GRAPH ###
-# Create the line graph
-prova= dolphins_label[, c(1,2,4)]
-net_prova = graph_from_data_frame(prova, directed = FALSE)
-line_graph <- make_line_graph(net_prova)
-length(V(net_prova))
-length(E(net_prova))
-length(V(line_graph)) #  Since each node in L(G) L(G) represents an edge in G, L(G) will have 6902 nodes.
-length(E(line_graph)) # Two nodes in L(G) are connected if their corresponding edges in G share a common vertex.
-V(line_graph)$type <- E(net_prova)$type
-str(line_graph)
-
-levels(as.factor(V(line_graph)$type))
-contract_prova = contract(line_graph,as.numeric(as.factor(V(line_graph)$type)))
-V(contract_prova)
-simplify(contract_prova)
-data(fblog)
-
-E(line_graph)$weight <- 1
-# Contract graph by `group` attribute of vertices
-g1 <- contract(line_graph, factor(V(line_graph)$type),
-               vertex.attr.comb = function(x) levels(factor(x)))
-# Remove loop edges and compute the sum of edge weight by group
-g1 <- simplify(g1, edge.attr.comb = "sum")
-
-plot(g1, edge.width = E(g1)$weight, vertex.label = levels(as.factor(V(line_graph)$type)), vertex.color = V(g1))
-############################################################################################################################################################################
-### Nicer plots ###
-
 
 
 ############################################################################################################################################################################
@@ -179,32 +149,6 @@ ggraph(net_prova, layout = "manual", x = layout[, 1], y = layout[, 2]) +
 
 ############################################################################################################################################################################
 
-### ORGANIZED ###
-ggraph(net_dolphins_label_O, layout = "centrality", cent = graph.strength(net_dolphins_label_O)) +
-  geom_edge_link2(aes(edge_colour = type), edge_linewidth = 0.5) +
-  geom_node_point(aes(fill= sightings_per_dolphin), shape = 21, size = 3) +
-  geom_node_text(aes(label = name, size = igraph::degree(net_dolphins_label_O)),
-    family = "serif", repel = TRUE
-  ) +
-  scale_edge_colour_brewer(palette = "Set1") +
-  #scale_fill_manual(values = c("grey66", "#EEB422", "#424242")) +
-  scale_size(range = c(4, 10), guide = "none") +
-  theme_graph() +
-  theme(legend.position = "bottom")
-
-ggraph(net_dolphins_label, layout = "centrality", cent = graph.strength(gotS1)) +
-  geom_edge_link0(aes(edge_linewidth = weight), edge_colour = "grey66") +
-  geom_node_point(aes(fill = clu, size = size), shape = 21) +
-  geom_node_text(aes(size = size, label = name), family = "serif") +
-  scale_edge_width_continuous(range = c(0.2, 0.9)) +
-  scale_size_continuous(range = c(1, 8)) +
-  scale_fill_manual(values = got_palette) +
-  coord_fixed() +
-  theme_graph() +
-  theme(legend.position = "none")
-
-### CONCENTRIC LAYOUT ###
-
 ggraph(gotS1, layout = "focus", focus = 1) +
   geom_edge_link0(aes(edge_linewidth = weight), edge_colour = "grey66") +
   geom_node_point(aes(fill = clu, size = size), shape = 21) +
@@ -218,47 +162,4 @@ ggraph(gotS1, layout = "focus", focus = 1) +
   theme_graph() +
   theme(legend.position = "none")
 
-############################################################################################################################################################################
-### CIRCULAR LAYOUT ###
-
-
-comps <- components(net_overall)
-net_O_restricted <- delete_vertices(net_overall, which(comps$membership == which.min(comps$csize)))
-
-comps <- components(net_O_restricted)
-net_O_restricted <- delete_vertices(net_O_restricted, which(comps$membership == which.min(comps$csize)))
-
-
-
-ggraph(net_O_restricted, layout = "centrality", cent = graph.strength(net_O_restricted)) +
-  geom_edge_link2(aes(edge_colour = sightings), edge_linewidth = 0.5) +
-  scale_edge_colour_manual(values = edge_colors) + 
-  geom_node_point(aes(fill = sightings_per_dolphin, size = sightings_per_dolphin), shape=21) +
-  scale_fill_gradient(low = node_gradient[1], high = node_gradient[2]) + 
-  geom_node_text(aes(label = name), vjust = 0.5, hjust = 0.5,
-                 family = "serif", size = 3) +  # Adjust font size as needed
-  scale_size(range = c(4, 10), guide = "none") +
-  coord_fixed() +
-  theme_graph() +
-  theme(legend.position = "bottom")
-
-ggraph(gotS1, layout = "centrality", cent = graph.strength(gotS1)) +
-  geom_edge_link0(aes(edge_linewidth = weight), edge_colour = "grey66") +
-  geom_node_point(aes(fill = clu, size = size), shape = 21) +
-  geom_node_text(aes(size = size, label = name), family = "serif") +
-  scale_edge_width_continuous(range = c(0.2, 0.9)) +
-  scale_size_continuous(range = c(1, 8)) +
-  scale_fill_manual(values = got_palette) +
-  coord_fixed() +
-  theme_graph() +
-  theme(legend.position = "none")
-
-
-############################################################################################################################################################################à
-### HEATMAP ### 
-
-prova <- dolphins_label[, c(1,2,4)]
-net_prova <- graph_from_data_frame(prova, directed = FALSE)
-prova_adj <- as.matrix(net_prova[])
-image()
 

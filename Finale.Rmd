@@ -306,7 +306,6 @@ print(g)
 
 sightings_per_dolphin <- as.numeric(V(net_social)$sightings_per_dolphin)
 names(sightings_per_dolphin) <- V(net_social)$name
-
 # Define the HWI calculation function
 calculate_hwi <- function(edge_id, net_social, sightings_per_dolphin) {
   # Get the vertices connected by the edge
@@ -315,7 +314,7 @@ calculate_hwi <- function(edge_id, net_social, sightings_per_dolphin) {
   vertex2 <- vertices[2]
   
   # Number of times dolphins A and B were seen together
-  together <- E(net_social)$sightings[edge_id]
+  together <- E(net_social)$V3[edge_id]
   
   # Number of times A was seen without B
   sightings_A <- sightings_per_dolphin[vertex1]
@@ -338,7 +337,6 @@ hwi_values_S <- sapply(1:ecount(net_social), function(edge_id) {
 
 # Add HWI as an edge attribute
 E(net_social)$HWI <- hwi_values_S
-
 # Print the edge attributes to verify
 print(E(net_social))
 average_hwi_S <- mean(hwi_values_S)

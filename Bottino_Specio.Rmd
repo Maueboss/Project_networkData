@@ -47,8 +47,11 @@ Additionally, we will propose new perspectives beyond those presented in the pap
 ```{r libraries}
 library(graphlayouts)
 library(ggforce)
+library(gridExtra)
 library(dplyr)
-# install.packages("extrafont",repos = "http://cran.us.r-project.org")
+# install.packages("seriation",repos = "http://cran.us.r-project.org")
+library(seriation)
+library(tidygraph)
 library(ggplot2)
 library(igraph)
 library(tidyverse)
@@ -134,6 +137,93 @@ net_social = net_dolphins(dolphins_label_S)
 net_travel = net_dolphins(dolphins_label_T)
 net_overall = net_dolphins(dolphins_label_O)
 net = net_dolphins(dolphins_label)
+
+net_forage = delete_vertices(net_forage, V(net_forage)[sightings_per_dolphin < 3])
+net_social = delete_vertices(net_social, V(net_social)[sightings_per_dolphin < 3])
+net_overall = delete_vertices(net_overall, V(net_overall)[sightings_per_dolphin < 3])
+net_travel = delete_vertices(net_travel, V(net_travel)[sightings_per_dolphin < 3])
+net = delete_vertices(net, V(net)[sightings_per_dolphin <3])
+```
+
+# Compute network weights
+```{r HWI}
+# HWI = x / (x + 1/2(ya + yb)
+# x: sighting delledge tra A e B
+# ya: sighting di A senza B (sightingA - together)
+# yb: sighting di B senza A (sightingB - together)
+sightings_S <- as.numeric(V(net_social)$sightings_per_dolphin)
+names(sightings_S) <- V(net_social)$name
+
+sightings_F <- as.numeric(V(net_forage)$sightings_per_dolphin)
+names(sightings_F) <- V(net_forage)$name
+
+sightings_O <- as.numeric(V(net_overall)$sightings_per_dolphin)
+names(sightings_O) <- V(net_overall)$name
+
+sightings_T <- as.numeric(V(net_travel)$sightings_per_dolphin)
+names(sightings_T) <- V(net_travel)$name
+# Define the HWI calculation function
+calculate_hwi <- function(edge_id, net, df) {
+  # Get the vertices connected by the edge
+  vertices <- ends(net, edge_id)
+  vertex1 <- vertices[1]
+  vertex2 <- vertices[2]
+  
+  # Number of times dolphins A and B were seen together
+  together <- E(net)$V3[edge_id]
+  
+  # Number of times A was seen without B
+  sightings_A <- df[names(df)==vertex1]
+  without_B <- sightings_A - together
+  
+  # Number of times B was seen without A
+  sightings_B <- df[names(df)==vertex2]
+  without_A <- sightings_B - together
+  
+  # Calculate HWI
+  hwi_value <- 2.0*together / (without_A  + without_B )
+  
+  return(hwi_value)
+}
+
+
+# Calculate HWI for each edge in the socialize network
+hwi_S <- sapply(1:ecount(net_social), function(edge_id) {
+  calculate_hwi(edge_id, net_social, sightings_S)
+})
+
+# Add HWI as an edge attribute in the socialize network
+E(net_social)$weight <- hwi_S
+avg_hwi_S <- mean(hwi_S)
+
+# Calculate HWI for each edge in the travel network
+hwi_T <- sapply(1:ecount(net_travel), function(edge_id) {
+  calculate_hwi(edge_id, net_travel, sightings_T)
+})
+
+# Add HWI as an edge attribute in the travel network
+E(net_travel)$weight <- hwi_T
+avg_hwi_T <-  mean(hwi_T)
+
+# Calculate HWI for each edge in the forage network
+hwi_F <- sapply(1:ecount(net_forage), function(edge_id) {
+  calculate_hwi(edge_id, net_forage, sightings_F)
+})
+
+# Add HWI as an edge attribute in the forage network
+E(net_forage)$weight <- hwi_F
+avg_hwi_F <- mean(hwi_F)
+
+
+# Calculate HWI for each edge in the overall network
+hwi_O <- sapply(1:ecount(net_overall), function(edge_id) {
+  calculate_hwi(edge_id, net_overall, sightings_O)
+})
+
+# Add HWI as an edge attribute in the overall network
+E(net_overall)$weight <- hwi_O
+avg_hwi_O <- mean(hwi_O)
+
 ```
 # Network desctiption
 !!!METTI TABLES CON INFORMAZIONI SULLE RETI COME ORDER, SIZE ECC IN UNA TABELLA CARINA!!!
@@ -187,6 +277,51 @@ ggraph(net_O_restricted, layout = "centrality", cent = graph.strength(net_O_rest
   coord_fixed() +
   theme_graph() +
   theme(legend.position = "bottom")
+
+```
+
+```{r vis_matrix}
+dolphins_matrix <- dolphins_label_[, c(1, 2, 4)]
+dolphins_matrix <- arrange(dolphins_matrix, V1, V2)
+dolphins_label_O <- dolphins_matrix[dolphins_matrix$type == "O", c(1,2)]
+dolphins_label_F <- dolphins_matrix[dolphins_matrix$type == "F", c(1,2)]
+dolphins_label_T <- dolphins_matrix[dolphins_matrix$type == "T", c(1,2)]
+dolphins_label_S <- dolphins_matrix[dolphins_matrix$type == "S", c(1,2)]
+
+library(gridExtra)
+
+# Create individual graphs for each type
+graph_F <- ggraph(dolphins_label_F, layout = 'matrix', sort.by = node_rank_spectral()) + 
+    geom_edge_point(mirror = TRUE) + 
+    coord_fixed() +
+    ggtitle("Forage Dolphins")
+
+graph_T <- ggraph(dolphins_label_T, layout = 'matrix', sort.by = node_rank_spectral()) + 
+    geom_edge_point(mirror = TRUE) + 
+    coord_fixed() +
+    ggtitle("Travel Dolphins")
+
+graph_S <- ggraph(dolphins_label_S, layout = 'matrix', sort.by = node_rank_spectral()) + 
+    geom_edge_point(mirror = TRUE) + 
+    coord_fixed() +
+    ggtitle("Social Dolphins")
+
+graph_O <- ggraph(dolphins_label_O, layout = 'matrix', sort.by = node_rank_spectral()) + 
+    geom_edge_point(mirror = TRUE) + 
+    coord_fixed() +
+    ggtitle("Overall Dolphins")
+
+# Combine the graphs into a grid
+grid <- grid.arrange(graph_F, graph_T, graph_S, graph_O, nrow = 2, ncol = 2)
+
+# Display the grid
+grid
+
+
+```
+
+```{r vis_contour}
+
 
 ```
 
@@ -250,6 +385,46 @@ A large community overlap between two networks means dolphins that tend to assoc
 
 # Descriptive statistics
 
-```{r }
+```{r avg_degree_strength}
+# Calculate average degree for each network
+avg_degree_social <- mean(degree(net_social))
+avg_degree_forage <- mean(degree(net_forage))
+avg_degree_net <- mean(degree(net_overall))
+avg_degree_travel <- mean(degree(net_travel))
+
+# Create a data frame for plotting
+data_degree <- data.frame(Network = c("net_social", "net_forage", "net", "net_travel"),
+                                     Avg_Degree = c(avg_degree_social, avg_degree_forage, avg_degree_net, avg_degree_travel))
+
+# Plot average degree using ggraph
+g_degree <- ggplot(data_degree, aes(x = Network, y = Avg_Degree, fill = Network)) +
+    geom_col() +
+    geom_text(aes(label = round(Avg_Degree, 2)), vjust = -0.5) +
+    labs(title = "Average Degree Comparison",
+             x = "Network",
+             y = "Average Degree") +
+    theme_minimal()
+print(g_degree)
+
+avg_strength_social <- mean(strength(net_social))
+avg_strength_forage <- mean(strength(net_forage))
+avg_strength_net <- mean(strength(net_overall))
+avg_strength_travel <- mean(strength(net_travel))
+
+# Create a data frame for plotting
+data_strength <- data.frame(Network = c("net_social", "net_forage", "net", "net_travel"),
+                                     Avg_Strength = c(avg_strength_social, avg_strength_forage, avg_strength_net, avg_strength_travel))
+
+# Plot average strength using ggraph
+g_strength <- ggplot(data_strength, aes(x = Network, y = Avg_Strength, fill = Network)) +
+    geom_col() +
+    geom_text(aes(label = round(Avg_Strength, 2)), vjust = -0.5) +
+    labs(title = "Average Strength Comparison",
+             x = "Network",
+             y = "Average Strength") +
+    theme_minimal()
+print(g_strength)
 
 ```
+
+
