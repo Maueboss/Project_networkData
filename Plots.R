@@ -32,24 +32,31 @@ ggraph(net_dolphins_label, layout = "stress", bbox = 15) +
 ### LINE GRAPH ###
 # Create the line graph
 prova= dolphins_label[, c(1,2,4)]
-net_prova = graph_from_data_frame(dolphins_label, directed = FALSE)
+net_prova = graph_from_data_frame(prova, directed = FALSE)
 line_graph <- make_line_graph(net_prova)
+length(V(net_prova))
+length(E(net_prova))
+length(V(line_graph)) #  Since each node in L(G) L(G) represents an edge in G, L(G) will have 6902 nodes.
+length(E(line_graph)) # Two nodes in L(G) are connected if their corresponding edges in G share a common vertex.
+V(line_graph)$type <- E(net_prova)$type
 str(line_graph)
 
+levels(as.factor(V(line_graph)$type))
+contract_prova = contract(line_graph,as.numeric(as.factor(V(line_graph)$type)))
+V(contract_prova)
+simplify(contract_prova)
+data(fblog)
 
-# Plot the line graph using ggraph
-ggraph(line_graph, layout = "stress") +
-  geom_edge_link(aes(edge_alpha = 0.8), edge_colour = "blue") +
-  geom_node_point(size = 5, color = "red") + 
-  theme_void() +
-  theme(legend.position = "none")
+E(line_graph)$weight <- 1
+# Contract graph by `group` attribute of vertices
+g1 <- contract(line_graph, factor(V(line_graph)$type),
+               vertex.attr.comb = function(x) levels(factor(x)))
+# Remove loop edges and compute the sum of edge weight by group
+g1 <- simplify(g1, edge.attr.comb = "sum")
 
-
-
-
+plot(g1, edge.width = E(g1)$weight, vertex.label = levels(as.factor(V(line_graph)$type)), vertex.color = V(g1))
 ############################################################################################################################################################################
 ### Nicer plots ###
-
 
 
 
@@ -245,3 +252,13 @@ ggraph(gotS1, layout = "centrality", cent = graph.strength(gotS1)) +
   coord_fixed() +
   theme_graph() +
   theme(legend.position = "none")
+
+
+############################################################################################################################################################################à
+### HEATMAP ### 
+
+prova <- dolphins_label[, c(1,2,4)]
+net_prova <- graph_from_data_frame(prova, directed = FALSE)
+prova_adj <- as.matrix(net_prova[])
+image()
+

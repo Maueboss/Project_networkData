@@ -26,7 +26,7 @@ The study's findings reveal that dolphins socialize in large groups with prefere
 # Data collection.
 Data were collected from 147 resident bottlenose dolphins in Cedar Key, Florida, over two periods in 2008 and 2010. Dolphins were observed for socializing, traveling, and foraging behaviors. Individual dolphins were identified using photographs of their dorsal fins. Group compositions were recorded, excluding sightings of the same group within an hour or on the same day to avoid non-independent sampling.
 
-# Network Construction
+# Network Construction and data sampling
 In this context, the vertices in the network represent the individual dolphins, and the edges represent associations between the corresponding dolphins.
 
 *Four main networks* were used: an overall network that does not take behavior into account, and the socialize network, the travel network and the forage network that correspond to their respective behaviors. In addition, a comprehensive network was created as well, combining all the other four together.
@@ -135,7 +135,8 @@ net_travel = net_dolphins(dolphins_label_T)
 net_overall = net_dolphins(dolphins_label_O)
 net = net_dolphins(dolphins_label)
 ```
-
+# Network desctiption
+!!!METTI TABLES CON INFORMAZIONI SULLE RETI COME ORDER, SIZE ECC IN UNA TABELLA CARINA!!!
 # Network visualization
 ```{r vis_general}
 # Suggested colors for edge categories and node gradient
