@@ -23,10 +23,10 @@ The null hypothesis is that regardless of activity state, the corresponding netw
 # Paper's Key findings.
 The study's findings reveal that dolphins socialize in large groups with preferential associations, travel in smaller groups with selective partners, and forage in very small, weakly connected groups. There is some overlap between socializing and traveling networks but little overlap with foraging networks, indicating that social bonds are less important during foraging.
 
-# Data collection.
+# Data collection
 Data were collected from 147 resident bottlenose dolphins in Cedar Key, Florida, over two periods in 2008 and 2010. Dolphins were observed for socializing, traveling, and foraging behaviors. Individual dolphins were identified using photographs of their dorsal fins. Group compositions were recorded, excluding sightings of the same group within an hour or on the same day to avoid non-independent sampling.
 
-# Network Construction and data sampling
+# Network Construction
 In this context, the vertices in the network represent the individual dolphins, and the edges represent associations between the corresponding dolphins.
 
 *Four main networks* were used: an overall network that does not take behavior into account, and the socialize network, the travel network and the forage network that correspond to their respective behaviors. In addition, a comprehensive network was created as well, combining all the other four together.
@@ -80,75 +80,42 @@ net_travel <- read_graph("Data/travel.gml", format = "gml")
 # Network visualization
 ```{r vis_general}
 # Suggested colors for edge categories and node gradient
-edge_colors <- c("1" = "#377eb8", "2" = "#e41a1c", "3-4" = "#4daf4a", ">4" = "#984ea3")
 node_gradient <- c("#f7fbff", "#08306b")  # From light blue to dark blue
-edge_colors_general <- c("F" = "#377eb8", "S" = "#e41a1c", "T" = "#4daf4a", "O" = "#984ea3")
+threshold =  max(V(net_social)$sightings - 2*sd(V(net_social)$sightings))
 
-# Plot the network
-ggraph(net_overall, layout = "stress", bbox = 15) +
-  geom_edge_link2(aes(edge_colour = hwi), edge_linewidth = 0.5) +
-  geom_node_point(aes(fill = sightings, size = degree), shape=21) +
+# Plot the network per spiegare sightings e hwi
+# PENSARE SE METTERE DEGREE SU SIZE
+ggraph(net_social, layout = "centrality", cent = graph.strength(net_social)) +
+  geom_edge_link2(aes(edge_linewidth = hwi), edge_colour = "grey") +
+  geom_node_point(aes(fill = V(net_social)$degree, size = sightings), shape=21)) +
   scale_fill_gradient(low = node_gradient[1], high = node_gradient[2]) + 
-  geom_node_text(aes(label = id), vjust = 0.5, hjust = 0.5,
-                 family = "serif", size = 3) +  # Adjust font size as needed
-  scale_size(range = c(4, 10), guide = "none") +
-  theme(legend.position = "bottom")
-
-# general one (total confusion)
-ggraph(net, layout = "stress", bbox = 15) +
-  geom_edge_link2(aes(edge_colour = type), edge_linewidth = 0.5) +
-  scale_edge_colour_manual(values = edge_colors_general) + 
-  geom_node_point(aes(fill = sightings_per_dolphin, size = sightings_per_dolphin), shape=21) +
-  scale_fill_gradient(low = node_gradient[1], high = node_gradient[2]) + 
-  geom_node_text(aes(label = name), vjust = 0.5, hjust = 0.5,
-                 family = "serif", size = 3) +  # Adjust font size as needed
-  scale_size(range = c(4, 10), guide = "none") +
-  theme(legend.position = "bottom")
-```
-
-```{r vis_circular}
-comps <- components(net_overall)
-net_O_restricted <- delete_vertices(net_overall, which(comps$membership == which.min(comps$csize)))
-
-comps <- components(net_O_restricted)
-net_O_restricted <- delete_vertices(net_O_restricted, which(comps$membership == which.min(comps$csize)))
-
-
-
-ggraph(net_O_restricted, layout = "centrality", cent = graph.strength(net_O_restricted)) +
-  geom_edge_link2(aes(edge_colour = sightings), edge_linewidth = 0.5) +
-  scale_edge_colour_manual(values = edge_colors) + 
-  geom_node_point(aes(fill = sightings_per_dolphin, size = sightings_per_dolphin), shape=21) +
-  scale_fill_gradient(low = node_gradient[1], high = node_gradient[2]) + 
-  geom_node_text(aes(label = name), vjust = 0.5, hjust = 0.5,
-                 family = "serif", size = 3) +  # Adjust font size as needed
+  geom_node_text(aes(label = id, filter = sightings >= threshold), vjust = 0.5, hjust = 0.5,
+                 family = "serif", size = 3, col = "black") +  # Adjust font size as needed
   scale_size(range = c(4, 10), guide = "none") +
   coord_fixed() +
-  theme_graph() +
   theme(legend.position = "bottom")
-
 ```
 
 ```{r vis_matrix}
 library(gridExtra)
 
 # Create individual graphs for each type
-graph_F <- ggraph(net_overall, layout = 'matrix', sort.by = node_rank_spectral()) + 
+graph_F <- ggraph(net_forage, layout = 'matrix', sort.by = node_rank_spectral()) + 
     geom_edge_point(mirror = TRUE) + 
     coord_fixed() +
     ggtitle("Forage Dolphins")
 
-graph_T <- ggraph(dolphins_label_T, layout = 'matrix', sort.by = node_rank_spectral()) + 
+graph_T <- ggraph(net_travel, layout = 'matrix', sort.by = node_rank_spectral()) + 
     geom_edge_point(mirror = TRUE) + 
     coord_fixed() +
     ggtitle("Travel Dolphins")
 
-graph_S <- ggraph(dolphins_label_S, layout = 'matrix', sort.by = node_rank_spectral()) + 
+graph_S <- ggraph(net_social, layout = 'matrix', sort.by = node_rank_spectral()) + 
     geom_edge_point(mirror = TRUE) + 
     coord_fixed() +
     ggtitle("Social Dolphins")
 
-graph_O <- ggraph(dolphins_label_O, layout = 'matrix', sort.by = node_rank_spectral()) + 
+graph_O <- ggraph(net_overall, layout = 'matrix', sort.by = node_rank_spectral()) + 
     geom_edge_point(mirror = TRUE) + 
     coord_fixed() +
     ggtitle("Overall Dolphins")
@@ -162,7 +129,105 @@ grid
 
 ```
 
+# Research Findings + Graphical Representation
 
+```{r}
+# Create a data frame for plotting
+networks = list(net_social, net_forage, net_overall, net_travel)
+
+avg_degree <- sapply(networks, function(net) mean(V(net)$degree))
+avg_strength <- sapply(networks, function(net) mean(V(net)$strength))
+avg_clustering <- sapply(networks, function(net) mean(V(net)$clustering))
+avg_betweenness <- sapply(networks, function(net) mean(V(net)$betweenness))
+avg_closeness <- sapply(networks, function(net) mean(V(net)$closeness))
+avg_sightings <- sapply(networks, function(net) mean(V(net)$sightings))
+avg_eigen <- sapply(networks, function(net) mean(V(net)$eigenvector))
+avg_community <- sapply(networks, function(net) mean(V(net)$community))
+
+
+bar_plot = function(avgs, title) {
+  data <- data.frame(Network = c("net_social", "net_forage", "net_overall", "net_travel"),
+                     Avg = avgs)
+  
+  plot = ggplot(data, aes(x = Network, y = Avg, fill = Network)) +
+    geom_col() +
+    geom_text(aes(label = round(Avg, 2)), vjust = -0.5) +
+    labs(title = paste("Average", title, "Comparison"),
+         x = "Network",
+         y = "Average") +
+    theme_minimal()
+  return(plot)
+}
+
+bar_plot_degree = bar_plot(avg_degree, "Degree")
+bar_plot_strength = bar_plot(avg_strength, "Strength")
+bar_plot_clustering = bar_plot(avg_clustering, "Clustering Coefficient")
+bar_plot_betweenness = bar_plot(avg_betweenness, "Betweenness Centrality")
+bar_plot_closeness = bar_plot(avg_closeness, "Closeness Centrality")
+bar_plot_sightings = bar_plot(avg_sightings, "Sightings")
+bar_plot_eigen = bar_plot(avg_eigen, "Eigenvector Centrality")
+bar_plot_community = bar_plot(avg_community, "Community")
+
+
+
+```
+
+Here we report the research study findings, we explain what does it mean in terms of graph construction and then proceed to propose the approprate graphs.
+```{r table_2_3}
+knitr::include_graphics("Table_2.png")
+knitr::include_graphics("Table_3.png")
+```
+
+* There are preferential associations between individuals in the overall network, the socialize network and the travel network, but not in the forage network (table 2). This is not an artefact of sample size: the number of sightings in the forage network (153) is greater than that in the travel network (77) and socialize network (38).
+  + Node degree distribution plots helps to visualize preferential associations. Nodes with higher degrees have more connections, indicating preferential associations. 
+  
+Social Network: Lower degree distribution in the social network indicates that dolphins in this network have fewer connections or associations compared to the forage network.
+
+Forage Network: Higher degree distribution in the forage network suggests that dolphins in this network have more connections or associations compared to the social network.
+
+```{r}
+plot(degree(net_social), main="Social Network", xlab="Degree", ylab="Frequency")
+plot(degree(net_forage), main="Forage Network", xlab="Degree", ylab="Frequency")
+```
+**Socialise network** 
+* Individuals have strong and repeated connections to many other individuals.
+  + Highest average degree, Highest average strength, Highest average edge weight.
+
+
+* Socializing happens in large groups and these groups are not exclusive.
+  + Largest group size per sighting, Highest size per community, Least number of communities, Fewest connected components.
+  
+
+* Dolphins that are connected to a particular dolphin are more likely to be connected to one another.
+  + Highest clustering coefficient.
+
+**Travel network**
+* Dolphins in this network do not have strong and repeated connections to many others except their preferential associates  
+  + Lower average degree, Lower average strength, Lower average edge weight).
+
+* Travelling happens in smaller groups than socializing.
+  + Smaller group sizes per sighting, Smaller community size, Larger number of communities, Larger number of connected components. 
+  
+* Dolphins that are connected to a particular dolphin are less likely to be connected to each other.
+  + Smaller clustering coefficient.
+
+* Though dolphins do have preferential associations while travelling, they do not travel in groups as large as those they socialize in or as small as they forage in.
+
+**Forage network**
+* The dolphins in the forage network have the weakest and least repeated connections to other individuals.
+  + Lower average degree, Lower average strength, Lowest average edge weight). 
+
+* Foraging happens in smaller groups than any other activity and these groups are exclusive with fewer links to other foraging groups or they are more likely in groups that never forage together. 
+  + Smallest group sizes per sighting, Smallest community size; Highest number of communities or Highest number of connected components.
+  
+* Foraging dolphins that are connected to other foraging dolphins are not as likely to be connected to each other as they are in the socialize and forage networks.
+  + Lowest clustering coefficient)
+  
+**Community Overlap**
+```{r table_4}
+knitr::include_graphics("Table_4.png")
+```
+A large community overlap between two networks means dolphins that tend to associate closely with each other in one network also associate closely in the other. * The socialize network and the travel network have the most substantial community structure overlap, the travel network and the forage network have the least and the socialize network and the forage network have an intermediate value. The overlap between the overall network and each activity network is less than that of the activity networks to each other.
 
 
 # Descriptive statistics

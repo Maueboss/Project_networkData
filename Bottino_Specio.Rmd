@@ -257,28 +257,6 @@ ggraph(net, layout = "stress", bbox = 15) +
   theme(legend.position = "bottom")
 ```
 
-```{r vis_circular}
-comps <- components(net_overall)
-net_O_restricted <- delete_vertices(net_overall, which(comps$membership == which.min(comps$csize)))
-
-comps <- components(net_O_restricted)
-net_O_restricted <- delete_vertices(net_O_restricted, which(comps$membership == which.min(comps$csize)))
-
-
-
-ggraph(net_O_restricted, layout = "centrality", cent = graph.strength(net_O_restricted)) +
-  geom_edge_link2(aes(edge_colour = sightings), edge_linewidth = 0.5) +
-  scale_edge_colour_manual(values = edge_colors) + 
-  geom_node_point(aes(fill = sightings_per_dolphin, size = sightings_per_dolphin), shape=21) +
-  scale_fill_gradient(low = node_gradient[1], high = node_gradient[2]) + 
-  geom_node_text(aes(label = name), vjust = 0.5, hjust = 0.5,
-                 family = "serif", size = 3) +  # Adjust font size as needed
-  scale_size(range = c(4, 10), guide = "none") +
-  coord_fixed() +
-  theme_graph() +
-  theme(legend.position = "bottom")
-
-```
 
 ```{r vis_matrix}
 dolphins_matrix <- dolphins_label_[, c(1, 2, 4)]
@@ -357,7 +335,8 @@ plot(degree(net_forage), main="Forage Network", xlab="Degree", ylab="Frequency")
   + Highest clustering coefficient.
 
 **Travel network**
-* Dolphins in this network do not have strong and repeated connections to many others except their preferential associates   + Lower average degree, Lower average strength, Lower average edge weight).
+* Dolphins in this network do not have strong and repeated connections to many others except their preferential associates  
+  + Lower average degree, Lower average strength, Lower average edge weight).
 
 * Travelling happens in smaller groups than socializing.
   + Smaller group sizes per sighting, Smaller community size, Larger number of communities, Larger number of connected components. 

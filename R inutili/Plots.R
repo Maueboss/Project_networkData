@@ -34,35 +34,29 @@ ggraph(net_dolphins_label, layout = "stress", bbox = 15) +
 
 ######## CLUSTERING ########
 #### NODE CLUSTERING ####
+g <- sample_islands(9, 40, 0.4, 15)
+g <- igraph::simplify(g)
+V(g)$grp <- as.character(rep(1:9, each = 40))
 
-comps <- components(net_dolphins_label_F)
-net_dolphins_label_F_restricted <- delete_vertices(net_dolphins_label_F, which(comps$membership == which.min(comps$csize)))
-
-comps <- components(net_dolphins_label_F_restricted)
-net_dolphins_label_F_restricted <- delete_vertices(net_dolphins_label_F_restricted, which(comps$membership == which.min(comps$csize)))
-
-comps <- components(net_dolphins_label_F_restricted)
-net_dolphins_label_F_restricted <- delete_vertices(net_dolphins_label_F_restricted, which(comps$membership == which.min(comps$csize)))
-
-
-bb <- layout_as_backbone(line_graph, keep = 0.4)
-E(net_dolphins_label_F_restricted)$col <- F
-
-E(net_dolphins_label_F_restricted)$col[bb$backbone] <- T
-
-ggraph(net_dolphins_label_F_restricted,
+g <- igraph::simplify(net_travel)
+V(g)$grp <- as.character(V(g)$community)
+bb <- layout_as_backbone(g, keep = 0.4)
+E(g)$col <- FALSE
+E(g)$col[bb$backbone] <- TRUE
+V(g)$community
+ggraph(g,
        layout = "manual",
        x = bb$xy[, 1],
        y = bb$xy[, 2]) +
   geom_edge_link0(aes(filter = !col, col = col), width = 0.2) +
   geom_node_voronoi(
-    aes(x, y, fill = sightings_per_dolphin),
+    aes(x, y, fill = grp),
     max.radius = 0.4,
     expand = unit(-0.5, 'mm'),
     colour = 'black'
   ) +
   scale_color_brewer(palette = "Set1") +
-  #scale_fill_brewer(palette = "Set1") +
+  scale_fill_brewer(palette = "Set1") +
   scale_edge_color_manual(values = c(rgb(0, 0, 0, 0.3), rgb(0, 0, 0, 1))) +
   theme(
     legend.position = "none",
@@ -71,24 +65,6 @@ ggraph(net_dolphins_label_F_restricted,
     axis.text = element_blank()
   ) +
   theme_graph() +
-  theme(legend.position = "none")
-
-ggraph(net_dolphins_label_O_restricted,
-       layout = "manual",
-       x = bb$xy[, 1],
-       y = bb$xy[, 2]) +
-  geom_edge_link0(aes(col = col), width = 0.2) +
-  geom_node_point(aes(fill = sightings_per_dolphin), shape = 21, size = 3) +
-  geom_mark_hull(
-    aes(x, y, group = sightings_per_dolphin, fill = sightings_per_dolphin),
-    concavity = 4,
-    expand = unit(2, "mm"),
-    alpha = 0.25
-  ) +
-  scale_color_brewer(palette = "Set1") +
-  #scale_fill_brewer(palette = "Set1") +
-  scale_edge_color_manual(values = c(rgb(0, 0, 0, 0.3), rgb(0, 0, 0, 1))) +
-  theme_graph()+
   theme(legend.position = "none")
 
 ###### EDGE CLUSTERING ######
