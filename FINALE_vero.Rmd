@@ -76,6 +76,24 @@ net_social <- read_graph("Data/socialise.gml", format = "gml")
 # Travel dolphins social network
 net_travel <- read_graph("Data/travel.gml", format = "gml")
 ```
+# General networks information
+```{r}
+# General information about the networks
+# Create a list of network objects
+networks <- list(Forage = net_forage,Travel= net_travel,Social = net_social, Overall= net_overall)
+
+info_networks <- lapply(networks, function(net) {
+  data.frame(
+    Order = vcount(net),
+    Size = ecount(net),
+    Diameter = diameter(net),
+    Is_Connected_Weak = is_connected(net, mode = "weak"),
+    Is_Connected_Strong = is_connected(net, mode = "strong")
+  )
+})
+names(info_networks) <- names(networks)
+
+```
 
 # Network visualization
 ```{r vis_general}
@@ -87,7 +105,7 @@ threshold =  max(V(net_social)$sightings - 2*sd(V(net_social)$sightings))
 # PENSARE SE METTERE DEGREE SU SIZE
 ggraph(net_social, layout = "centrality", cent = graph.strength(net_social)) +
   geom_edge_link2(aes(edge_linewidth = hwi), edge_colour = "grey") +
-  geom_node_point(aes(fill = V(net_social)$degree, size = sightings), shape=21)) +
+  geom_node_point(aes(fill = V(net_social)$degree, size = sightings), shape=21) +
   scale_fill_gradient(low = node_gradient[1], high = node_gradient[2]) + 
   geom_node_text(aes(label = id, filter = sightings >= threshold), vjust = 0.5, hjust = 0.5,
                  family = "serif", size = 3, col = "black") +  # Adjust font size as needed
@@ -97,44 +115,40 @@ ggraph(net_social, layout = "centrality", cent = graph.strength(net_social)) +
 ```
 
 ```{r vis_matrix}
-library(gridExtra)
 
-# Create individual graphs for each type
-graph_F <- ggraph(net_forage, layout = 'matrix', sort.by = node_rank_spectral()) + 
-    geom_edge_point(mirror = TRUE) + 
+library(ggplot2)
+library(igraph)
+
+# Create a list to store the heatmaps
+heatmaps <- list()
+
+# Loop through each network and create the heatmap
+for (i in 1:length(networks)) {
+  adj_matrix <- as.matrix(as_adjacency_matrix(networks[[i]], attr = "hwi", sparse = FALSE))
+  adj_df <- as.data.frame(as.table(adj_matrix))
+  names(adj_df) <- c("Dolphin_1", "Dolphin_2", "HWI")
+  
+  heatmap <- ggplot(adj_df, aes(x = Dolphin_1, y = Dolphin_2, fill = HWI)) +
+    geom_tile() +
+    scale_fill_gradient(low = "white", high = "red") +
     coord_fixed() +
-    ggtitle("Forage Dolphins")
+    theme_minimal() +
+    ggtitle(names(networks)[i]) +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+    labs(title = paste("Heatmap of", names(networks)[i]))
+  
+  heatmaps[[i]] <- heatmap
+}
 
-graph_T <- ggraph(net_travel, layout = 'matrix', sort.by = node_rank_spectral()) + 
-    geom_edge_point(mirror = TRUE) + 
-    coord_fixed() +
-    ggtitle("Travel Dolphins")
-
-graph_S <- ggraph(net_social, layout = 'matrix', sort.by = node_rank_spectral()) + 
-    geom_edge_point(mirror = TRUE) + 
-    coord_fixed() +
-    ggtitle("Social Dolphins")
-
-graph_O <- ggraph(net_overall, layout = 'matrix', sort.by = node_rank_spectral()) + 
-    geom_edge_point(mirror = TRUE) + 
-    coord_fixed() +
-    ggtitle("Overall Dolphins")
-
-# Combine the graphs into a grid
-grid <- grid.arrange(graph_F, graph_T, graph_S, graph_O, nrow = 2, ncol = 2)
-
-# Display the grid
-grid
-
+# Grid the heatmaps 2x2
+grid.arrange(heatmaps[[1]], heatmaps[[2]], heatmaps[[3]], heatmaps[[4]], ncol = 2)
 
 ```
 
 # Research Findings + Graphical Representation
 
-```{r}
+```{r setup_bar_plots}
 # Create a data frame for plotting
-networks = list(net_social, net_forage, net_overall, net_travel)
-
 avg_degree <- sapply(networks, function(net) mean(V(net)$degree))
 avg_strength <- sapply(networks, function(net) mean(V(net)$strength))
 avg_clustering <- sapply(networks, function(net) mean(V(net)$clustering))
@@ -146,7 +160,7 @@ avg_community <- sapply(networks, function(net) mean(V(net)$community))
 
 
 bar_plot = function(avgs, title) {
-  data <- data.frame(Network = c("net_social", "net_forage", "net_overall", "net_travel"),
+  data <- data.frame(Network = names,
                      Avg = avgs)
   
   plot = ggplot(data, aes(x = Network, y = Avg, fill = Network)) +
@@ -167,9 +181,6 @@ bar_plot_closeness = bar_plot(avg_closeness, "Closeness Centrality")
 bar_plot_sightings = bar_plot(avg_sightings, "Sightings")
 bar_plot_eigen = bar_plot(avg_eigen, "Eigenvector Centrality")
 bar_plot_community = bar_plot(avg_community, "Community")
-
-
-
 ```
 
 Here we report the research study findings, we explain what does it mean in terms of graph construction and then proceed to propose the approprate graphs.
@@ -189,6 +200,190 @@ Forage Network: Higher degree distribution in the forage network suggests that d
 plot(degree(net_social), main="Social Network", xlab="Degree", ylab="Frequency")
 plot(degree(net_forage), main="Forage Network", xlab="Degree", ylab="Frequency")
 ```
+
+## Degree
+
+## Strength
+
+
+```{r degree_distribution}
+
+general_graph = function(title, metric_S, metric_F, metric_T,metric_O, breaks=100){
+
+  netstat_dist <- function (s, breaks) { # statistic s could be anything
+    h <- hist(s, plot = FALSE, breaks)
+    bin_breaks <- as.vector(stats::filter(h$breaks, c(1, 1) / 2))
+    bin_breaks <- bin_breaks[-length(h$breaks)]
+    list(d = bin_breaks[h$counts > 0], fd = h$counts[h$counts > 0])
+  }
+
+  dd_S <- netstat_dist(metric_S, breaks = breaks)
+  dd_F <- netstat_dist(metric_F, breaks = breaks)
+  dd_T <- netstat_dist(metric_T, breaks = breaks)
+  dd_O <- netstat_dist(metric_O, breaks = breaks)
+  # Plot degree distribution
+  # Combine degree distribution data into a single data frame
+  data_degree_dist <- data.frame(Network = c(rep("Social Network", length(dd_S$d)),
+                    rep("Forage Network", length(dd_F$d)),
+                    rep("Travel Network", length(dd_T$d)),
+                    rep("Overall Network", length(dd_O$d))),
+
+              Degree = c(dd_S$d, dd_F$d, dd_T$d, dd_O$d),
+              Frequency = c(dd_S$fd, dd_F$fd, dd_T$fd, dd_O$fd))
+
+
+  # Define the plots
+  # Degree Histogram with KDE
+  degree_hist_kde <- ggplot(data_degree_dist, aes(x = Degree, fill = Network)) +
+    geom_histogram(binwidth = 1, alpha = 0.5, position = "identity") +
+    geom_density(alpha = 0.5) +
+    labs(title = paste(title, "Distribution with KDE"),
+        x = title,
+        y = "Frequency") +
+    theme_minimal()
+
+  # Cumulative Degree Distribution Plot
+  degree_cumulative <- ggplot(data_degree_dist, aes(x = Degree, group = Network, color = Network)) +
+    stat_ecdf(size = 1) +
+    labs(title = paste("Cumulative", title," Distribution"),
+        x = title,
+        y = "Cumulative Frequency") +
+    theme_minimal()
+
+  # Violin Plot of Degree Distribution
+  degree_violin <- ggplot(data_degree_dist, aes(x = Network, y = Degree, fill = Network)) +
+    geom_violin() +
+    labs(title = paste("Violin Plot of ",title," Distribution"),
+        x = "Network",
+        y = title) +
+    theme_minimal()
+
+  # Ridgeline Plot of Degree Distribution
+  degree_ridgeline <- ggplot(data_degree_dist, aes(x = Degree, y = Network, fill = Network)) +
+    geom_density_ridges(scale = 2, rel_min_height = 0.01) +
+    labs(title = paste("Ridgeline Plot of ", title, " Distr."),
+        x = title,
+        y = "Network") +
+    theme_minimal() +
+    theme(legend.position = "none")
+
+  # Arrange plots in a grid
+  grid_1 = grid.arrange(degree_hist_kde, degree_cumulative, degree_violin, degree_ridgeline, nrow = 2)
+
+  # Plot degree distribution
+  # Fit GLM for each network type
+  glm_models <- lapply(split(data_degree_dist, data_degree_dist$Network), function(df) {
+    glm(Frequency ~ log(Degree), family = poisson, data = df)
+  })
+
+  # Plot degree distribution using ggplot
+  degree_distribution_plot = ggplot(data_degree_dist, aes(x = log(Degree), y = Frequency, color = Network)) +
+    geom_point() +
+    geom_smooth(method = "glm", method.args = list(family = poisson), se = FALSE) +
+    labs(title = paste(title, " Distribution"),
+      x = paste("log(",title,")"),
+      y = "Frequency") +
+    theme_minimal()
+
+  degree_summary <- sapply(networks, function(net) {
+    degree_values <- degree(net)
+    c(Mean = mean(degree_values), Median = median(degree_values), Max = max(degree_values))
+  })
+
+  degree_summary <- t(degree_summary)
+  degree_summary <- as.data.frame(degree_summary)
+  degree_summary$Network <- rownames(degree_summary)
+  degree_summary <- degree_summary[, c("Network", "Mean", "Median", "Max")]
+
+  # Convert the summary table to a ggplot table
+  summary_table <- tableGrob(degree_summary, rows = NULL)
+
+  grid_2 = grid.arrange(degree_distribution_plot, summary_table, nrow = 2, heights = c(3, 1))
+
+
+  avgs = c(mean(metric_S), mean(metric_F), mean(metric_T), mean(metric_O))
+
+  bar_plot = function(avgs, title) {
+    data <- data.frame(Network = c("Social Network", "Forage Network", "Travel Network", "Overall Network"),
+                      Avg = avgs)
+    
+    plot = ggplot(data, aes(x = Network, y = Avg, fill = Network)) +
+      geom_col() +
+      geom_text(aes(label = round(Avg, 2)), vjust = -0.5) +
+      labs(title = paste("Average", title, "Comparison"),
+          x = "Network",
+          y = "Average") +
+      theme_minimal()
+    return(plot)
+  }
+  grid_3 = bar_plot(avgs, title)
+
+  return(list(grid_1, grid_2,grid_3, avgs))
+}
+
+degree_plots = general_graph("Degree", V(net_social)$degree, V(net_forage)$degree, V(net_travel)$degree, V(net_overall)$degree)
+```
+
+
+## Strength
+
+
+```{r strength_distribution}
+
+strength_plots =general_graph("Strength", V(net_social)$strength, V(net_forage)$strength, V(net_travel)$strength, V(net_overall)$strength)
+
+```
+
+## Clustering Coefficient
+
+```{r clustering_coefficient}
+
+clustering_plots = general_graph("Clustering Coefficient", V(net_social)$clustering, V(net_forage)$clustering, V(net_travel)$clustering, V(net_overall)$clustering)
+```
+
+## Betweenness Centrality
+
+```{r betweenness_centrality}
+
+betweenness_plots = general_graph("Betweenness Centrality", V(net_social)$betweenness, V(net_forage)$betweenness, V(net_travel)$betweenness, V(net_overall)$betweenness)
+```
+
+## Closeness Centrality
+
+```{r closeness_centrality}
+
+closeness_plots = general_graph("Closeness Centrality", V(net_social)$closeness, V(net_forage)$closeness, V(net_travel)$closeness, V(net_overall)$closeness)
+
+```
+
+## Eigenvector Centrality
+
+```{r eigenvector_centrality}
+
+eigenvector_plots = general_graph("Eigenvector Centrality", V(net_social)$eigenvector, V(net_forage)$eigenvector, V(net_travel)$eigenvector, V(net_overall)$eigenvector)
+
+```
+
+## Community
+
+```{r community}
+
+community_plots = general_graph("Community", V(net_social)$community, V(net_forage)$community, V(net_travel)$community, V(net_overall)$community)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
 **Socialise network** 
 * Individuals have strong and repeated connections to many other individuals.
   + Highest average degree, Highest average strength, Highest average edge weight.
@@ -232,65 +427,6 @@ A large community overlap between two networks means dolphins that tend to assoc
 
 # Descriptive statistics
 
-```{r avg_degree_strength}
-# Calculate average degree for each network
-degree_S <- degree(net_social)
-degree_F <- degree(net_forage)
-degree_O <- degree(net_overall)
-degree_T <- degree(net_travel)
-
-avg_degree_social <- mean(degree_S)
-avg_degree_forage <- mean(degree_F)
-avg_degree_net <- mean(degree_O)
-avg_degree_travel <- mean(degree_T)
-
-# Create a data frame for plotting
-data_degree <- data.frame(Network = c("net_social", "net_forage", "net", "net_travel"),
-                                     Avg_Degree = c(avg_degree_social, avg_degree_forage, avg_degree_net, avg_degree_travel))
-
-# Plot average degree using ggraph
-g_degree <- ggplot(data_degree, aes(x = Network, y = Avg_Degree, fill = Network)) +
-    geom_col() +
-    geom_text(aes(label = round(Avg_Degree, 2)), vjust = -0.5) +
-    labs(title = "Average Degree Comparison",
-             x = "Network",
-             y = "Average Degree") +
-    theme_minimal()
-print(g_degree)
-
-strength_S <- strength(net_social)
-strength_F <- strength(net_forage)
-strength_O <- strength(net_overall)
-strength_T <- strength(net_travel)
-
-avg_strength_social <- mean(strength_S)
-avg_strength_forage <- mean(strength_F)
-avg_strength_net <- mean(strength_O)
-avg_strength_travel <- mean(strength_T)
-
-# Create a data frame for plotting
-data_strength <- data.frame(Network = c("net_social", "net_forage", "net", "net_travel"),
-                                     Avg_Strength = c(avg_strength_social, avg_strength_forage, avg_strength_net, avg_strength_travel))
-
-# Plot average strength using ggraph
-g_strength <- ggplot(data_strength, aes(x = Network, y = Avg_Strength, fill = Network)) +
-    geom_col() +
-    geom_text(aes(label = round(Avg_Strength, 2)), vjust = -0.5) +
-    labs(title = "Average Strength Comparison",
-             x = "Network",
-             y = "Average Strength") +
-    theme_minimal()
-print(g_strength)
-
-```
-```{r degree_hist}
-# Degree histogram
-hist(degree_S, main="Social Network", xlab="Degree", ylab="Frequency")
-hist(degree_F, main="Forage Network", xlab="Degree", ylab="Frequency")
-hist(degree_T, main="Travel Network", xlab="Degree", ylab="Frequency")
-hist(degree_O, main="Overall Network", xlab="Degree", ylab="Frequency")
-
-```
 
 ```{r strength_vs_degree}
 # Create a data frame for plotting
@@ -300,28 +436,7 @@ plot(degree_T, strength_T)
 plot(degree_O, strength_O)
 
 ```
-```{r degree_distribution}
-# Degree distribution
-degree_dist <- function (g) {
-  fd <- table(degree(g))
-  d <- as.numeric(names(fd)) + 1 # degree + 1
-  list(d = d, fd = as.numeric(fd))
-}
-dd_S <- degree_dist(net_social)
-dd_F <- degree_dist(net_forage)
-dd_T <- degree_dist(net_travel)
-dd_O <- degree_dist(net_overall)
 
-# Plot degree distribution
-par(mfrow = c(2, 2))
-
-plot(dd_S$d,dd_S$fd, main="Social Network", xlab="Degree", ylab="Frequency")
-plot(dd_F$d,dd_F$fd, main="Forage Network", xlab="Degree", ylab="Frequency")
-plot(dd_T$d,dd_T$fd, main="Travel Network", xlab="Degree", ylab="Frequency")
-plot(dd_O$d,dd_O$fd, main="Overall Network", xlab="Degree", ylab="Frequency")
-
-
-```
 
 ```{r strength_distribution}
 # Strength distribution
@@ -345,31 +460,6 @@ plot(sd_O$s,sd_O$fs , main="Overall Network", xlab="Strength", ylab="Frequency")
 
 ```
 
-```{r betweenness}
-# Calculate betweenness centrality for each network
-betweenness_S <- betweenness(net_social)
-betweenness_F <- betweenness(net_forage)
-betweenness_O <- betweenness(net_overall)
-betweenness_T <- betweenness(net_travel)
-
-# betweenness distribution
-
-
-
-netstat_dist <- function (s, breaks) { # statistic s could be anything
-  h <- hist(s, plot = FALSE, breaks)
-  bin_breaks <- as.vector(stats::filter(h$breaks, c(1, 1) / 2))
-  bin_breaks <- bin_breaks[-length(h$breaks)]
-  list(s = bin_breaks[h$counts > 0], fs = h$counts[h$counts > 0])
-}
-
-bd_S <- netstat_dist(betweenness_S, 100)
-bd_F <- netstat_dist(betweenness_F, 100)
-bd_T <- netstat_dist(betweenness_T, 100)
-bd_O <- netstat_dist(betweenness_O, 100)
-
-
-```
 
 ```{r closeness}
 # Calculate closeness centrality for each network

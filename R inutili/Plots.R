@@ -139,3 +139,35 @@ ggraph(gotS1, layout = "focus", focus = 1) +
   theme(legend.position = "none")
 
 
+############################################################################################################################################################################
+
+library(ggplot2)
+library(igraph)
+
+# Create a list of network objects
+networks <- list(net_forage, net_travel, net_overall, net_social)
+names = c("Forage", "Travel", "Overall", "Social")
+
+# Create a list to store the heatmaps
+heatmaps <- list()
+
+# Loop through each network and create the heatmap
+for (i in 1:length(networks)) {
+  adj_matrix <- as.matrix(as_adjacency_matrix(networks[[i]], attr = "hwi", sparse = FALSE))
+  adj_df <- as.data.frame(as.table(adj_matrix))
+  names(adj_df) <- c("Dolphin_1", "Dolphin_2", "HWI")
+  
+  heatmap <- ggplot(adj_df, aes(x = Dolphin_1, y = Dolphin_2, fill = HWI)) +
+    geom_tile() +
+    scale_fill_gradient(low = "white", high = "red") +
+    coord_fixed() +
+    theme_minimal() +
+    ggtitle(names(networks)[i]) +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+    labs(title = paste("Heatmap of", names[i]))
+  
+  heatmaps[[i]] <- heatmap
+}
+
+# Grid the heatmaps 2x2
+grid.arrange(heatmaps[[1]], heatmaps[[2]], heatmaps[[3]], heatmaps[[4]], ncol = 2)

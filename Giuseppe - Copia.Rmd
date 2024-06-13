@@ -59,6 +59,7 @@ library(knitr)
 library(ggridges)
 library(extrafont)
 library(multiplex)
+install.packages("multiplex", repos='http://cran.us.r-project.org')
 loadfonts(device = "pdf")
 ```
 
@@ -186,8 +187,8 @@ degree_distribution_data <- function(net, net_name) {
 }
 
 # Generate degree distribution data for all networks
-degree_data_list <- lapply(names(networks1), function(net_name) {
-  degree_distribution_data(networks1[[net_name]], net_name)
+degree_data_list <- lapply(names(Network), function(net_name) {
+  degree_distribution_data(Network[[net_name]], net_name)
 })
 
 # Combine data into one data frame
@@ -420,184 +421,3 @@ knitr::include_graphics("Table_4.png")
 ```
 A large community overlap between two networks means dolphins that tend to associate closely with each other in one network also associate closely in the other. * The socialize network and the travel network have the most substantial community structure overlap, the travel network and the forage network have the least and the socialize network and the forage network have an intermediate value. The overlap between the overall network and each activity network is less than that of the activity networks to each other.
 
-
-# Descriptive statistics
-
-```{r avg_degree_strength}
-# Calculate average degree for each network
-degree_S <- degree(net_social)
-degree_F <- degree(net_forage)
-degree_O <- degree(net_overall)
-degree_T <- degree(net_travel)
-
-avg_degree_social <- mean(degree_S)
-avg_degree_forage <- mean(degree_F)
-avg_degree_net <- mean(degree_O)
-avg_degree_travel <- mean(degree_T)
-
-# Create a data frame for plotting
-data_degree <- data.frame(Network = c("net_social", "net_forage", "net", "net_travel"),
-                                     Avg_Degree = c(avg_degree_social, avg_degree_forage, avg_degree_net, avg_degree_travel))
-
-# Plot average degree using ggraph
-g_degree <- ggplot(data_degree, aes(x = Network, y = Avg_Degree, fill = Network)) +
-    geom_col() +
-    geom_text(aes(label = round(Avg_Degree, 2)), vjust = -0.5) +
-    labs(title = "Average Degree Comparison",
-             x = "Network",
-             y = "Average Degree") +
-    theme_minimal()
-print(g_degree)
-
-strength_S <- strength(net_social)
-strength_F <- strength(net_forage)
-strength_O <- strength(net_overall)
-strength_T <- strength(net_travel)
-
-avg_strength_social <- mean(strength_S)
-avg_strength_forage <- mean(strength_F)
-avg_strength_net <- mean(strength_O)
-avg_strength_travel <- mean(strength_T)
-
-# Create a data frame for plotting
-data_strength <- data.frame(Network = c("net_social", "net_forage", "net", "net_travel"),
-                                     Avg_Strength = c(avg_strength_social, avg_strength_forage, avg_strength_net, avg_strength_travel))
-
-# Plot average strength using ggraph
-g_strength <- ggplot(data_strength, aes(x = Network, y = Avg_Strength, fill = Network)) +
-    geom_col() +
-    geom_text(aes(label = round(Avg_Strength, 2)), vjust = -0.5) +
-    labs(title = "Average Strength Comparison",
-             x = "Network",
-             y = "Average Strength") +
-    theme_minimal()
-print(g_strength)
-
-```
-```{r degree_hist}
-# Degree histogram
-hist(degree_S, main="Social Network", xlab="Degree", ylab="Frequency")
-hist(degree_F, main="Forage Network", xlab="Degree", ylab="Frequency")
-hist(degree_T, main="Travel Network", xlab="Degree", ylab="Frequency")
-hist(degree_O, main="Overall Network", xlab="Degree", ylab="Frequency")
-
-```
-
-```{r strength_vs_degree}
-# Create a data frame for plotting
-plot(degree_S, strength_S)
-plot(degree_F, strength_F)
-plot(degree_T, strength_T)
-plot(degree_O, strength_O)
-
-```
-```{r degree_distribution}
-# Degree distribution
-degree_dist <- function (g) {
-  fd <- table(degree(g))
-  d <- as.numeric(names(fd)) + 1 # degree + 1
-  list(d = d, fd = as.numeric(fd))
-}
-dd_S <- degree_dist(net_social)
-dd_F <- degree_dist(net_forage)
-dd_T <- degree_dist(net_travel)
-dd_O <- degree_dist(net_overall)
-
-# Plot degree distribution
-par(mfrow = c(2, 2))
-
-plot(dd_S$d,dd_S$fd, main="Social Network", xlab="Degree", ylab="Frequency")
-plot(dd_F$d,dd_F$fd, main="Forage Network", xlab="Degree", ylab="Frequency")
-plot(dd_T$d,dd_T$fd, main="Travel Network", xlab="Degree", ylab="Frequency")
-plot(dd_O$d,dd_O$fd, main="Overall Network", xlab="Degree", ylab="Frequency")
-
-
-```
-
-```{r strength_distribution}
-# Strength distribution
-strength_dist <- function (g, weights = NULL) {
-  fs <- table(strength(g, weights = weights))
-  s <- as.numeric(names(fs)) + 1 # degree + 1
-  list(s = s, fs = as.numeric(fs))
-}
-sd_S <- strength_dist(net_social, weights= E(net_social)$weight)
-sd_F <- strength_dist(net_forage, weights= E(net_forage)$weight)
-sd_T <- strength_dist(net_travel, weights= E(net_travel)$weight)
-sd_O <- strength_dist(net_overall, weights= E(net_overall)$weight)
-
-# Plot strength distribution
-par(mfrow = c(2, 2))
-
-plot(sd_S$s,sd_S$fs , main="Social Network", xlab="Strength", ylab="Frequency")
-plot(sd_F$s,sd_F$fs , main="Forage Network", xlab="Strength", ylab="Frequency")
-plot(sd_T$s,sd_T$fs , main="Travel Network", xlab="Strength", ylab="Frequency")
-plot(sd_O$s,sd_O$fs , main="Overall Network", xlab="Strength", ylab="Frequency")
-
-```
-
-```{r betweenness}
-# Calculate betweenness centrality for each network
-betweenness_S <- betweenness(net_social)
-betweenness_F <- betweenness(net_forage)
-betweenness_O <- betweenness(net_overall)
-betweenness_T <- betweenness(net_travel)
-
-# betweenness distribution
-
-
-
-netstat_dist <- function (s, breaks) { # statistic s could be anything
-  h <- hist(s, plot = FALSE, breaks)
-  bin_breaks <- as.vector(stats::filter(h$breaks, c(1, 1) / 2))
-  bin_breaks <- bin_breaks[-length(h$breaks)]
-  list(s = bin_breaks[h$counts > 0], fs = h$counts[h$counts > 0])
-}
-
-bd_S <- netstat_dist(betweenness_S, 100)
-bd_F <- netstat_dist(betweenness_F, 100)
-bd_T <- netstat_dist(betweenness_T, 100)
-bd_O <- netstat_dist(betweenness_O, 100)
-
-
-```
-
-```{r closeness}
-# Calculate closeness centrality for each network
-closeness_S <- closeness(net_social)
-closeness_F <- closeness(net_forage)
-closeness_O <- closeness(net_overall)
-closeness_T <- closeness(net_travel)
-
-```
-
-```{r transitivity}
-# Calculate transitivity for each network
-transitivity_S <- transitivity(net_social)
-transitivity_F <- transitivity(net_forage)
-transitivity_O <- transitivity(net_overall)
-transitivity_T <- transitivity(net_travel)
-
-```
-
-```{r eigen_centrality}
-# Calculate eigenvector centrality for each network
-eigen_S <- eigen_centrality(net_social)$vector
-eigen_F <- eigen_centrality(net_forage)$vector
-eigen_O <- eigen_centrality(net_overall)$vector
-eigen_T <- eigen_centrality(net_travel)$vector
-
-
-```
-
-```{r density}
-# Calculate density for each network
-density_S <- edge_density(net_social)
-density_F <- edge_density(net_forage)
-density_O <- edge_density(net_overall)
-density_T <- edge_density(net_travel)
-
-```
-```{r EGO_network}
-
-```
