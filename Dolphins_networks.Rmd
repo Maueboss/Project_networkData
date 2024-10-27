@@ -3,6 +3,8 @@ title: "Untitled"
 author: "Bottino Manuel & Giuseppe Specio"
 date: "Today's Date"
 output:
+  pdf_document:
+    toc: true
   html_document:
     toc: true
     toc_float: true
@@ -45,6 +47,9 @@ Additionally, we will propose new perspectives beyond those presented in the pap
   + Sightings: amount of times that two dolphins were seen together. It helps assessing the weight of the edge.
 
 ```{r libraries}
+library(rstudioapi)
+setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+knitr::opts_knit$set(root.dir = dirname(rstudioapi::getSourceEditorContext()$path))
 library(graphlayouts)
 library(ggforce)
 library(gridExtra)
