@@ -5,8 +5,8 @@ Our goal is to replicate the findings of this research graphically, analyze beha
 
 **Project Objectives**
 
-	1.	Visualize the behavioral networks of bottlenose dolphins under different activity contexts.
-	2.	Analyze the network characteristics, such as preferential associations and clustering among multiple networks.
+1. Visualize the behavioral networks of bottlenose dolphins under different activity contexts.
+2. Analyze the network characteristics, such as preferential associations and clustering among multiple networks.
 
 **Dataset Description**
 
